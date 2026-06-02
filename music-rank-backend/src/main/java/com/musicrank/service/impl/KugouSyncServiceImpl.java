@@ -292,6 +292,7 @@ public class KugouSyncServiceImpl implements KugouSyncService {
     public Map<String, Object> getTokenStatus() {
         Map<String, Object> status = new HashMap<>();
         status.put("valid", tokenManager.isValid());
+        status.put("token", tokenManager.getToken());
         status.put("lastUpdate", tokenManager.getLastUpdate().toString());
         status.put("hasToken", tokenManager.getToken() != null && !tokenManager.getToken().isEmpty());
         return status;

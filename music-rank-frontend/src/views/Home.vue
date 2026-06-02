@@ -96,7 +96,7 @@ import LoginDialog from '../components/LoginDialog.vue'
 import KugouSyncDialog from '../components/KugouSyncDialog.vue'
 import { getMusicPage, getMusicList, addMusic, batchImportMusic, batchDeleteMusic } from '../api/music'
 import { getPlaylists } from '../api/playlist'
-import { getKugouPlaylists, batchImportToPlaylist } from '../api/kugou'
+import { getKugouPlaylists, batchImportToPlaylist, getTokenStatus } from '../api/kugou'
 import axios from 'axios'
 
 // ===== 状态 =====
@@ -222,7 +222,24 @@ async function handleExport() {
 // ===== 登录 =====
 function handleLoginSuccess(token) { isLoggedIn.value = true; axios.defaults.headers.common['X-Kugou-Token'] = token }
 function handleLogout() { localStorage.removeItem('kugou_token'); delete axios.defaults.headers.common['X-Kugou-Token']; isLoggedIn.value = false }
-function checkLogin() { const t = localStorage.getItem('kugou_token'); if (t) { isLoggedIn.value = true; axios.defaults.headers.common['X-Kugou-Token'] = t } }
+async function checkLogin() {
+  const localToken = localStorage.getItem('kugou_token')
+  if (localToken) {
+    isLoggedIn.value = true
+    axios.defaults.headers.common['X-Kugou-Token'] = localToken
+    return
+  }
+  // 本地无 token，尝试从后端获取（多设备共享）
+  try {
+    const res = await getTokenStatus()
+    const backendToken = res.data?.data?.token || res.data?.token
+    if (backendToken) {
+      localStorage.setItem('kugou_token', backendToken)
+      isLoggedIn.value = true
+      axios.defaults.headers.common['X-Kugou-Token'] = backendToken
+    }
+  } catch {}
+}
 
 // ===== 酷狗同步 =====
 async function openSyncDialog() {
