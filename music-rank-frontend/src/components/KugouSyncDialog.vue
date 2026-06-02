@@ -24,7 +24,7 @@
             <el-checkbox :label="playlist.id" class="item-checkbox" />
             <div class="item-cover">
               <img
-                :src="playlist.coverUrl || 'https://picsum.photos/200/200'"
+                :src="httpsUrl(playlist.coverUrl)"
                 alt="封面"
                 loading="lazy"
               />
@@ -53,6 +53,7 @@
 
 <script setup>
 import { ref, watch } from 'vue'
+import { httpsUrl } from '../api/request'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },

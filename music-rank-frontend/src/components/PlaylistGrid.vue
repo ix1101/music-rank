@@ -8,7 +8,7 @@
     >
       <div class="playlist-cover">
         <img
-          :src="playlist.coverUrl || 'https://picsum.photos/200/200'"
+          :src="httpsUrl(playlist.coverUrl)"
           :alt="playlist.name"
           loading="lazy"
         />
@@ -20,6 +20,8 @@
 </template>
 
 <script setup>
+import { httpsUrl } from '../api/request'
+
 defineProps({
   playlists: { type: Array, default: () => [] }
 })
