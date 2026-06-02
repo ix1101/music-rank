@@ -220,24 +220,24 @@ async function handleExport() {
 }
 
 // ===== 登录 =====
-function handleLoginSuccess(token) { isLoggedIn.value = true; axios.defaults.headers.common['X-Kugou-Token'] = token }
-function handleLogout() { localStorage.removeItem('kugou_token'); delete axios.defaults.headers.common['X-Kugou-Token']; isLoggedIn.value = false }
+function handleLoginSuccess(token) { applyToken(token) }
+function handleLogout() { localStorage.removeItem('kugou_token'); delete axios.defaults.headers.common['X-Kugou-Token']; document.cookie = 'token=; path=/; max-age=0'; isLoggedIn.value = false }
+function applyToken(token) {
+  localStorage.setItem('kugou_token', token)
+  isLoggedIn.value = true
+  axios.defaults.headers.common['X-Kugou-Token'] = token
+  // 同时写浏览器 Cookie，Nginx 代理时自动携带给酷狗 API
+  document.cookie = `token=${token}; path=/; max-age=2592000; SameSite=Lax`
+}
+
 async function checkLogin() {
   const localToken = localStorage.getItem('kugou_token')
-  if (localToken) {
-    isLoggedIn.value = true
-    axios.defaults.headers.common['X-Kugou-Token'] = localToken
-    return
-  }
-  // 本地无 token，尝试从后端获取（多设备共享）
+  if (localToken) { applyToken(localToken); return }
+  // 本地无 token，从后端获取（多设备共享）
   try {
     const res = await getTokenStatus()
     const backendToken = res.data?.data?.token || res.data?.token
-    if (backendToken) {
-      localStorage.setItem('kugou_token', backendToken)
-      isLoggedIn.value = true
-      axios.defaults.headers.common['X-Kugou-Token'] = backendToken
-    }
+    if (backendToken) applyToken(backendToken)
   } catch {}
 }
 
