@@ -6,7 +6,6 @@ import { resolve } from 'path'
 dotenv.config()
 
 export default defineConfig({
-  base: '/music/',
   plugins: [vue()],
   resolve: {
     alias: {
