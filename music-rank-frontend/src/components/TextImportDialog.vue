@@ -32,27 +32,31 @@ watch(() => props.modelValue, (val) => { visible.value = val })
 watch(visible, (val) => { emit('update:modelValue', val) })
 
 async function handleParse() {
-  if (!rawText.value.trim()) {
-    return ElMessage.warning('请输入文本')
-  }
+  const text = rawText.value.trim()
+  if (!text) return ElMessage.warning('请输入文本')
 
-  const lines = rawText.value.split('\n')
+  const lines = text.split('\n')
   const musicList = []
   let currentStar = 0.0
 
-  const starRegex = /([0-9.]+)\s*星/
-  const songRegex = /^\s*-\s*(.+?)\s*-\s*(.+)$/
+  // 更宽松的星级匹配
+  const starRegex = /(?:⭐|🌟)?\s*([0-5](?:\.[05])?)\s*星?/
+  // 支持多种分隔方式：- 歌手 - 歌名 / 歌手 - 歌名 / 1. 歌手 - 歌名 / 歌名 - 歌手
+  const songRegex = /^\s*(?:[-–—]|\d+[.、．]|\*)\s*(.+?)\s*[-–—]\s*(.+)$/
 
   lines.forEach((line) => {
     line = line.trim()
-    if (!line) return
+    if (!line || line.startsWith('#')) return
 
+    // 检测星级标题行
     const starMatch = line.match(starRegex)
-    if (starMatch) {
-      currentStar = parseFloat(starMatch[1])
+    if (starMatch && line.length < 20) {
+      const s = parseFloat(starMatch[1])
+      if (!isNaN(s)) currentStar = s
       return
     }
 
+    // 检测歌曲行
     const songMatch = line.match(songRegex)
     if (songMatch && currentStar > 0) {
       musicList.push({
@@ -62,17 +66,35 @@ async function handleParse() {
         album: '',
         notes: ''
       })
+      return
+    }
+
+    // 兜底：尝试用空格/分隔符智能拆分
+    const parts = line.split(/[-–—]/)
+    if (parts.length >= 2 && currentStar > 0) {
+      const a = parts[0].trim()
+      const b = parts[1].trim()
+      if (a.length > 1 && b.length > 1) {
+        musicList.push({
+          artist: a,
+          title: b,
+          starRating: currentStar,
+          album: '',
+          notes: ''
+        })
+      }
     }
   })
 
   if (musicList.length === 0) {
-    return ElMessage.error('未能识别出有效歌曲，请检查文本格式是否包含 "数字星" 和 "- 歌手 - 歌名"')
+    return ElMessage.error('未能识别出有效歌曲，支持格式：\n🌟 5星\n- 歌手 - 歌名\n或\n5星\n歌手 - 歌名')
   }
 
   try {
     await emit('import', musicList)
     visible.value = false
     rawText.value = ''
+    ElMessage.success(`成功识别 ${musicList.length} 首歌曲`)
   } catch {
     // 错误由父组件处理
   }

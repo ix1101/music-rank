@@ -1,0 +1,33 @@
+# ============================================
+# 生产环境配置 — 云服务器低内存部署
+# 激活: java -jar app.jar --spring.profiles.active=prod
+# ============================================
+
+server:
+  port: 8080
+
+spring:
+  datasource:
+    # SQLite — 内嵌数据库，无需独立 MySQL 进程，省 300MB+ 内存
+    url: jdbc:sqlite:data/music.db
+    driver-class-name: org.sqlite.JDBC
+    # SQLite 不需要连接池，用默认即可
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    # 生产环境关闭 SQL 日志
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
+  global-config:
+    db-config:
+      # SQLite 不支持 AUTO_INCREMENT 关键字
+      id-type: auto
+
+# 酷狗 token（部署后通过前端登录同步到数据库）
+kugou:
+  token: ${KUGOU_TOKEN:}
+
+logging:
+  level:
+    root: WARN
+    com.musicrank: INFO

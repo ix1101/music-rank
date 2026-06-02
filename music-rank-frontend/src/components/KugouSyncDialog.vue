@@ -140,41 +140,45 @@ function handleSync() {
 .playlist-list::-webkit-scrollbar-track { background: transparent; }
 
 .playlist-item {
-  margin-bottom: 8px;
-  border-radius: 6px;
-  transition: background-color 0.2s;
+  margin-bottom: 12px;
+  border-radius: 10px;
+  border: 1px solid #ebeef5;
+  transition: all 0.2s;
 }
 
 .playlist-item:hover {
-  background-color: #f5f7fa;
+  background-color: #f0f5ff;
+  border-color: #165DFF;
 }
 
 .playlist-checkbox {
   width: 100%;
-  padding: 10px 12px;
+  padding: 14px 16px;
 }
 
 .playlist-content {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 16px;
 }
 
 .playlist-cover {
-  width: 56px;
-  height: 56px;
-  border-radius: 6px;
+  width: 64px;
+  height: 64px;
+  border-radius: 8px;
   object-fit: cover;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+  background: #f5f7fa;
 }
 
-.playlist-info { flex: 1; }
+.playlist-info { flex: 1; min-width: 0; }
 
 .playlist-name {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 500;
   color: #303133;
-  line-height: 1.4;
+  line-height: 1.5;
   margin-bottom: 4px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -182,7 +186,7 @@ function handleSync() {
 }
 
 .playlist-count {
-  font-size: 12px;
+  font-size: 13px;
   color: #909399;
 }
 
