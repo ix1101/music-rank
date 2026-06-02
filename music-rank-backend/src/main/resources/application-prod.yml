@@ -9,7 +9,7 @@ server:
 spring:
   datasource:
     # SQLite — 内嵌数据库，无需独立 MySQL 进程，省 300MB+ 内存
-    url: jdbc:sqlite:data/music.db
+    url: jdbc:sqlite:/home/admin/music-rank/data/music.db
     driver-class-name: org.sqlite.JDBC
     # SQLite 不需要连接池，用默认即可
 
