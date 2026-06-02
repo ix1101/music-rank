@@ -6,6 +6,7 @@ import { resolve } from 'path'
 dotenv.config()
 
 export default defineConfig({
+  base: '/music/',
   plugins: [vue()],
   resolve: {
     alias: {
@@ -15,6 +16,11 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     proxy: {
+      // 后端 API 代理
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true
+      },
       // 将 /kugou 开头的请求代理到本地 KuGouMusicApi (端口3000)
       '/kugou': {
         target: 'http://localhost:3000',

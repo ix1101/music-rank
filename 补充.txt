@@ -1,0 +1,78 @@
+cat /etc/nginx/sites-available/icey.help
+# --- 1. 新增：强制 HTTP 跳转 HTTPS ---
+server {
+    if ($host = www.icey.help) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+
+
+    if ($host = icey.help) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+
+
+    listen 80;
+    server_name icey.help www.icey.help;
+    return 301 https://$host$request_uri;
+}
+
+# --- 2. 原有的 HTTPS 配置 ---
+server {
+    listen 443 ssl http2;
+    listen 2053 ssl http2; # 保持你的面板端口
+    server_name icey.help www.icey.help;
+    ssl_certificate /etc/letsencrypt/live/icey.help/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/icey.help/privkey.pem; # managed by Certbot
+
+    # 协议纠错补丁
+    error_page 497 https://$host:$server_port$request_uri;
+
+    # --- 代理节点路径 (WebSocket 模式) ---
+    location /ms-download {
+        proxy_redirect off;
+        proxy_pass http://127.0.0.1:12345;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_read_timeout 300s;
+    }
+
+
+    # --- 核心设置：解除大小限制并关闭缓存，防止撑爆 20G 硬盘 ---
+    client_max_body_size 0;
+    proxy_request_buffering off;
+    proxy_buffering off;
+
+    # --- Alist 网盘路径 ---
+    location /pan/ {
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_pass http://127.0.0.1:5244; 
+
+        # 禁用 Nginx 的自动重定向修正
+        proxy_redirect off;
+
+        # 传输优化
+        client_max_body_size 0;
+        proxy_buffering off;
+        proxy_request_buffering off;
+    }
+
+    # --- 网站与面板 --- 
+    location / {
+        # 如果是通过 2053 访问，转发到 x-ui 面板
+        if ($server_port = "2053") {
+            proxy_pass http://127.0.0.1:54321;
+            break;
+        }
+        # 否则显示你的欢迎页
+        root /var/www/html;
+        index index.html;
+    }
+}

@@ -5,7 +5,9 @@ import axios from 'axios'
  * 自动携带通用配置和错误处理
  */
 const apiClient = axios.create({
-  baseURL: 'http://localhost:8080/api',
+  // 开发模式 Vite 代理 /api → localhost:8080/api
+  // 生产模式 Nginx 代理 /music/api → localhost:8080/api
+  baseURL: '/api',
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json'
