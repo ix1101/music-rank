@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build output
+target/
+dist/
+*.class
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+
+# Environment (contains tokens)
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Maven
+.mvn/
+
+# Claude
+.claude/
+.agents/
+
+# Java
+*.jar
+!lib/*.jar
+
+# 报告和临时文件（不上传）
+*优化报告.md
+优化总结报告.md
+kugou文档.txt
+问题.txt
+需求.txt
+优化.txt
+music_db.sql
