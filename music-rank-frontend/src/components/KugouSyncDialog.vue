@@ -6,43 +6,34 @@
     @close="resetDialog"
   >
     <div class="dialog-header">
-      <el-checkbox
-        v-model="isAllSelected"
-        @change="handleSelectAll"
-        style="font-weight: 500"
-      >
-        全选
-      </el-checkbox>
+      <el-checkbox v-model="isAllSelected" @change="handleSelectAll">全选</el-checkbox>
       <span class="selected-count">
-        已选择
-        <span class="count-highlight">{{ selectedPlaylists.length }}</span>
-        / {{ playlists.length }} 个歌单
+        已选择 <span class="count-highlight">{{ selectedPlaylists.length }}</span> / {{ playlists.length }} 个歌单
       </span>
     </div>
 
     <div class="playlist-list">
       <el-skeleton :loading="loading" :rows="5" animated>
         <el-checkbox-group v-model="selectedPlaylists">
-          <div
+          <label
             v-for="playlist in playlists"
             :key="playlist.id"
             class="playlist-item"
+            :class="{ 'is-checked': selectedPlaylists.includes(playlist.id) }"
           >
-            <el-checkbox :label="playlist.id" class="playlist-checkbox">
-              <div class="playlist-content">
-                <img
-                  :src="playlist.coverUrl || 'https://picsum.photos/200/200'"
-                  alt="封面"
-                  class="playlist-cover"
-                  loading="lazy"
-                />
-                <div class="playlist-info">
-                  <div class="playlist-name">{{ playlist.name }}</div>
-                  <div class="playlist-count">{{ playlist.trackCount }} 首歌曲</div>
-                </div>
-              </div>
-            </el-checkbox>
-          </div>
+            <el-checkbox :label="playlist.id" class="item-checkbox" />
+            <div class="item-cover">
+              <img
+                :src="playlist.coverUrl || 'https://picsum.photos/200/200'"
+                alt="封面"
+                loading="lazy"
+              />
+            </div>
+            <div class="item-text">
+              <div class="item-name">{{ playlist.name }}</div>
+              <div class="item-count">{{ playlist.trackCount }} 首歌曲</div>
+            </div>
+          </label>
         </el-checkbox-group>
 
         <div v-if="playlists.length === 0 && !loading" class="empty-state">
@@ -53,12 +44,7 @@
 
     <template #footer>
       <el-button @click="visible = false">取消</el-button>
-      <el-button
-        type="primary"
-        :loading="syncing"
-        :disabled="selectedPlaylists.length === 0"
-        @click="handleSync"
-      >
+      <el-button type="primary" :loading="syncing" :disabled="selectedPlaylists.length === 0" @click="handleSync">
         开始导入
       </el-button>
     </template>
@@ -81,20 +67,15 @@ const visible = ref(false)
 const selectedPlaylists = ref([])
 const isAllSelected = ref(false)
 
-watch(() => props.modelValue, (val) => { visible.value = val })
-watch(visible, (val) => { emit('update:modelValue', val) })
+watch(() => props.modelValue, (v) => { visible.value = v })
+watch(visible, (v) => { emit('update:modelValue', v) })
 
-// 监听选中变化，更新全选状态
-watch(selectedPlaylists, (newVal) => {
-  isAllSelected.value = newVal.length === props.playlists.length && props.playlists.length > 0
+watch(selectedPlaylists, (v) => {
+  isAllSelected.value = v.length === props.playlists.length && props.playlists.length > 0
 }, { deep: true })
 
 function handleSelectAll(checked) {
-  if (checked) {
-    selectedPlaylists.value = props.playlists.map((item) => item.id)
-  } else {
-    selectedPlaylists.value = []
-  }
+  selectedPlaylists.value = checked ? props.playlists.map(i => i.id) : []
 }
 
 function resetDialog() {
@@ -108,92 +89,90 @@ function handleSync() {
 </script>
 
 <style scoped>
+/* ---- 顶部 ---- */
 .dialog-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 0;
-  border-bottom: 1px solid #ebeef5;
-  margin-bottom: 12px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding-bottom: 12px; border-bottom: 1px solid #ebeef5; margin-bottom: 4px;
 }
+.selected-count { font-size: 13px; color: #606266; }
+.count-highlight { color: #165DFF; font-weight: 600; }
 
-.selected-count {
-  font-size: 13px;
-  color: #606266;
-}
-
-.count-highlight {
-  color: #165DFF;
-  font-weight: 500;
-}
-
+/* ---- 列表容器 ---- */
 .playlist-list {
-  max-height: 500px;
+  max-height: 460px;
   overflow-y: auto;
   overflow-x: hidden;
-  padding-right: 12px;
+  padding: 8px 4px;
 }
-
 .playlist-list::-webkit-scrollbar { width: 4px; }
 .playlist-list::-webkit-scrollbar-thumb { background: #dcdfe6; border-radius: 2px; }
-.playlist-list:hover::-webkit-scrollbar-thumb { background: #c0c4cc; }
 .playlist-list::-webkit-scrollbar-track { background: transparent; }
 
+/* ---- 列表项 ---- */
 .playlist-item {
-  margin-bottom: 12px;
-  border-radius: 10px;
-  border: 1px solid #ebeef5;
-  transition: all 0.2s;
-}
-
-.playlist-item:hover {
-  background-color: #f0f5ff;
-  border-color: #165DFF;
-}
-
-.playlist-checkbox {
-  width: 100%;
-  padding: 14px 16px;
-}
-
-.playlist-content {
   display: flex;
   align-items: center;
-  gap: 16px;
-}
-
-.playlist-cover {
-  width: 64px;
-  height: 64px;
+  gap: 12px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
   border-radius: 8px;
-  object-fit: cover;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+.playlist-item:last-child { margin-bottom: 0; }
+
+/* hover / 选中 — 整行蓝色背景 */
+.playlist-item:hover { background: #f0f5ff; }
+.playlist-item.is-checked { background: #eef2ff; }
+
+/* 复选框 — 固定不 shrink */
+.item-checkbox {
   flex-shrink: 0;
-  background: #f5f7fa;
+  display: flex;
+  align-items: center;
+}
+.item-checkbox :deep(.el-checkbox__label) { display: none; }
+
+/* 封面 — 固定容器，禁止溢出 */
+.item-cover {
+  width: 56px;
+  height: 56px;
+  border-radius: 6px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: #f1f5f9;
+}
+.item-cover img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
-.playlist-info { flex: 1; min-width: 0; }
-
-.playlist-name {
-  font-size: 15px;
+/* 文本 */
+.item-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+.item-name {
+  font-size: 14px;
   font-weight: 500;
   color: #303133;
-  line-height: 1.5;
-  margin-bottom: 4px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
-.playlist-count {
-  font-size: 13px;
+.item-count {
+  font-size: 12px;
   color: #909399;
 }
 
+/* 空状态 */
 .empty-state {
-  text-align: center;
-  padding: 40px 0;
-  color: #909399;
-  font-size: 14px;
+  text-align: center; padding: 40px 0; color: #909399; font-size: 14px;
 }
 </style>
