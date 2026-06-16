@@ -106,6 +106,7 @@
               <button @click="handleExport('dash'); exportOpen = false">横杠 (- 歌手 - 歌名)</button>
               <button @click="handleExport('pipe'); exportOpen = false">竖线 (⭐ 5星 | 歌手 | 歌名)</button>
               <button @click="handleExport('text'); exportOpen = false">文字 (歌手：…，歌名：…)</button>
+              <button @click="handleExport('json'); exportOpen = false">JSON (结构化数据)</button>
             </div>
           </div>
         </span>
@@ -324,6 +325,7 @@ function resetFilters() {
 
 function onFilterChange() {
   currentPage.value = 1
+  selectedIds.value = []
   fetchData()
 }
 
@@ -525,13 +527,22 @@ async function handleExport(fmt) {
   try {
     let songs
     if (selectedIds.value.length) {
-      songs = tableData.value.filter(i => selectedIds.value.includes(i.id))
+      // 有选中时，先拉取全量（不受分页限制），再按选中的 ID 过滤
+      const r = await getMusicList({
+        keyword: keyword.value || undefined,
+        singer: filter.value.singer || undefined,
+        starRatingMin: filter.value.starRatingMin ?? undefined,
+        starRatingMax: filter.value.starRatingMax ?? undefined,
+        hasStar: filter.value.hasStar ?? undefined,
+      })
+      const all = r.data?.data || r.data || []
+      songs = all.filter(i => selectedIds.value.includes(i.id))
     } else {
       const r = await getMusicList({
         keyword: keyword.value || undefined,
         singer: filter.value.singer || undefined,
         starRatingMin: filter.value.starRatingMin ?? undefined,
-      starRatingMax: filter.value.starRatingMax ?? undefined,
+        starRatingMax: filter.value.starRatingMax ?? undefined,
         hasStar: filter.value.hasStar ?? undefined,
       })
       songs = r.data?.data || r.data || []
@@ -560,6 +571,16 @@ async function handleExport(fmt) {
         const notes = (expNotes.value && s.notes) ? `，备注：${s.notes}` : ''
         return starLine + `歌手：${s.artist}，歌名：${s.title}${album}${notes}`
       }).join('\n')
+    } else if (fmt === 'json') {
+      // JSON 结构化导出
+      out = JSON.stringify(songs.map(s => ({
+        title: s.title,
+        artist: s.artist,
+        starRating: Number(s.starRating) || 0,
+        album: s.album || '',
+        notes: s.notes || '',
+        coverUrl: s.coverUrl || ''
+      })), null, 2)
     } else {
       // 横杠风格
       let currentStar = -1
@@ -573,7 +594,7 @@ async function handleExport(fmt) {
     }
 
     await navigator.clipboard.writeText(out.trim())
-    ElMessage.success(`已复制 ${songs.length} 首 (${fmt === 'pipe' ? '竖线' : fmt === 'text' ? '文字' : '横杠'}风格)`)
+    ElMessage.success(`已复制 ${songs.length} 首 (${fmt === 'pipe' ? '竖线' : fmt === 'text' ? '文字' : fmt === 'json' ? 'JSON' : '横杠'}风格)`)
   } catch (e) { ElMessage.error(e.message) }
 }
 
