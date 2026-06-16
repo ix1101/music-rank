@@ -49,3 +49,7 @@ kugou文档.txt
 需求.txt
 优化.txt
 music_db.sql
+
+# 部署快照（不上传）
+music-rank-aili/
+index07.html

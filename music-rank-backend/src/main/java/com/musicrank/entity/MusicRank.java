@@ -23,7 +23,11 @@ public class MusicRank {
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 
-    // 新增：临时字段，用于存储这首歌所属的歌单名称
+    // 临时字段：用于存储这首歌所属的歌单名称（单个，兼容旧逻辑）
     @TableField(exist = false)
     private String category;
+
+    // 临时字段：用于存储这首歌所属的所有歌单名称列表（多歌单支持）
+    @TableField(exist = false)
+    private java.util.List<String> playlistNames;
 }

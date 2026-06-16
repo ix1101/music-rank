@@ -8,7 +8,9 @@ import com.musicrank.service.MusicRankService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 音乐排行控制器
@@ -22,7 +24,7 @@ public class MusicRankController {
     private MusicRankService musicRankService;
 
     /**
-     * 分页查询歌曲（支持歌单筛选、关键词搜索、歌手筛选、星级筛选）
+     * 分页查询歌曲（支持歌单筛选、关键词搜索、歌手筛选、星级筛选、专辑筛选）
      */
     @GetMapping("/page")
     public Result<Page<MusicRank>> getPage(
@@ -31,8 +33,10 @@ public class MusicRankController {
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Long playlistId,
             @RequestParam(required = false) String singer,
-            @RequestParam(required = false) java.math.BigDecimal starRating,
-            @RequestParam(required = false) Boolean hasStar) {
+            @RequestParam(required = false) java.math.BigDecimal starRatingMin,
+            @RequestParam(required = false) java.math.BigDecimal starRatingMax,
+            @RequestParam(required = false) Boolean hasStar,
+            @RequestParam(required = false) String album) {
 
         MusicQueryDTO query = new MusicQueryDTO();
         query.setCurrent(current);
@@ -40,30 +44,61 @@ public class MusicRankController {
         query.setKeyword(keyword);
         query.setPlaylistId(playlistId);
         query.setSinger(singer);
-        query.setStarRating(starRating);
+        query.setStarRatingMin(starRatingMin);
+        query.setStarRatingMax(starRatingMax);
         query.setHasStar(hasStar);
+        query.setAlbum(album);
 
         return Result.success(musicRankService.getPage(query));
     }
 
     /**
      * 获取歌曲列表（支持筛选，用于导出）
-     * 注意：不传 hasStar 时不设默认过滤，返回所有歌曲
      */
     @GetMapping("/list")
     public Result<List<MusicRank>> getList(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String singer,
-            @RequestParam(required = false) java.math.BigDecimal starRating,
-            @RequestParam(required = false) Boolean hasStar) {
+            @RequestParam(required = false) java.math.BigDecimal starRatingMin,
+            @RequestParam(required = false) java.math.BigDecimal starRatingMax,
+            @RequestParam(required = false) Boolean hasStar,
+            @RequestParam(required = false) String album) {
 
         MusicQueryDTO query = new MusicQueryDTO();
         query.setKeyword(keyword);
         query.setSinger(singer);
-        query.setStarRating(starRating);
+        query.setStarRatingMin(starRatingMin);
+        query.setStarRatingMax(starRatingMax);
         query.setHasStar(hasStar);
+        query.setAlbum(album);
 
         return Result.success(musicRankService.getList(query));
+    }
+
+    /**
+     * 获取聚合统计（匹配条件的总歌曲数 + 已打星均分）
+     * 用于首页头部数字展示，计算全部匹配歌曲的均分而非仅当前页
+     */
+    @GetMapping("/stats")
+    public Result<Map<String, Object>> getStats(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String singer,
+            @RequestParam(required = false) java.math.BigDecimal starRatingMin,
+            @RequestParam(required = false) java.math.BigDecimal starRatingMax,
+            @RequestParam(required = false) Boolean hasStar,
+            @RequestParam(required = false) String album,
+            @RequestParam(required = false) Long playlistId) {
+
+        MusicQueryDTO query = new MusicQueryDTO();
+        query.setKeyword(keyword);
+        query.setSinger(singer);
+        query.setStarRatingMin(starRatingMin);
+        query.setStarRatingMax(starRatingMax);
+        query.setHasStar(hasStar);
+        query.setAlbum(album);
+        query.setPlaylistId(playlistId);
+
+        return Result.success(musicRankService.getStats(query));
     }
 
     /**
@@ -94,5 +129,58 @@ public class MusicRankController {
     public Result<String> batchDelete(@RequestBody List<Long> ids) {
         int deleted = musicRankService.batchDelete(ids);
         return Result.success("成功删除 " + deleted + " 条记录");
+    }
+
+    /**
+     * 更新歌曲信息
+     */
+    @PutMapping("/{id}")
+    public Result<MusicRank> updateMusic(@PathVariable Long id, @RequestBody MusicRank music) {
+        MusicRank updated = musicRankService.updateMusic(id, music);
+        return Result.success("更新成功", updated);
+    }
+
+    /**
+     * 删除单首歌曲
+     */
+    @DeleteMapping("/{id}")
+    public Result<?> deleteMusic(@PathVariable Long id) {
+        musicRankService.deleteMusic(id);
+        return Result.success("删除成功");
+    }
+
+    /**
+     * 快速更新星级评分
+     */
+    @PatchMapping("/{id}/star")
+    public Result<MusicRank> updateStarRating(
+            @PathVariable Long id,
+            @RequestBody Map<String, BigDecimal> body) {
+        BigDecimal starRating = body.get("starRating");
+        if (starRating == null) {
+            return Result.badRequest("starRating 不能为空");
+        }
+        MusicRank updated = musicRankService.updateStarRating(id, starRating);
+        return Result.success("评分更新成功", updated);
+    }
+
+    /**
+     * 获取歌曲所属的所有歌单
+     */
+    @GetMapping("/{id}/playlists")
+    public Result<List<Map<String, Object>>> getSongPlaylists(@PathVariable Long id) {
+        return Result.success(musicRankService.getSongPlaylists(id));
+    }
+
+    /**
+     * 更新歌曲的歌单归属（替换全部）
+     */
+    @PutMapping("/{id}/playlists")
+    public Result<?> updateSongPlaylists(
+            @PathVariable Long id,
+            @RequestBody Map<String, List<Long>> body) {
+        List<Long> playlistIds = body.get("playlistIds");
+        musicRankService.updateSongPlaylists(id, playlistIds);
+        return Result.success("歌单更新成功");
     }
 }

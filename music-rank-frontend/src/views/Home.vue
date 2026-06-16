@@ -1,83 +1,157 @@
 <template>
   <div class="app-shell">
-    <!-- 顶部 -->
+    <!-- === 头部 — 大留白 === -->
     <header class="app-header">
-      <div class="header-inner">
-        <div class="header-brand">
-          <span class="brand-icon">🎵</span>
-          <h1 class="brand-title">我的音乐精选</h1>
+      <div class="header-top">
+        <h1>我的音乐精选</h1>
+        <span class="header-sub">私人收藏库</span>
+      </div>
+      <div class="stats-line">
+        <div class="st-item">
+          <span class="st-num">{{ statsTotal }}</span>
+          <span class="st-lbl">首歌曲</span>
         </div>
-        <div class="header-meta">
-          <span class="meta-badge">📀 {{ total }}</span>
-          <span class="meta-badge">📁 {{ playlistCount }}</span>
-          <span class="meta-badge" v-if="avgRating > 0">⭐ {{ avgRating }}</span>
+        <div class="st-item">
+          <span class="st-num">{{ playlistCount }}</span>
+          <span class="st-lbl">个歌单</span>
+        </div>
+        <div class="st-item">
+          <span class="st-num">{{ statsAvg }}</span>
+          <span class="st-lbl">均分</span>
         </div>
       </div>
     </header>
 
-    <!-- 面包屑（查看歌单时） -->
+    <!-- === 搜索 — 柔和圆角 === -->
+    <div class="search-wrap">
+      <input
+        type="search"
+        class="search-input"
+        v-model="keyword"
+        placeholder="搜索歌名、歌手或专辑..."
+        autocomplete="off"
+        @input="onSearchDebounce"
+      />
+      <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2">
+        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+      </svg>
+    </div>
+
+    <!-- === 面包屑（歌单内） === -->
     <div v-if="currentPlaylistName" class="breadcrumb-bar">
-      <div class="breadcrumb-inner">
-        <el-button text class="breadcrumb-back" @click="backToAll">
-          ← 返回
+      <button class="bread-back" @click="backToAll">← 返回全部</button>
+      <span class="bread-sep">/</span>
+      <span class="bread-cur">{{ currentPlaylistName }}</span>
+      <span class="bread-cnt">{{ statsTotal }} 首</span>
+    </div>
+
+    <!-- === 标签切换 === -->
+    <nav class="app-tabs">
+      <button :class="['tab-btn', { active: activeTab === 'all' }]" @click="switchTo('all')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        全部音乐
+        <span class="tab-cnt">{{ statsTotal }}</span>
+      </button>
+      <button :class="['tab-btn', { active: activeTab === 'playlists' }]" @click="switchTo('playlists')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        我的歌单
+        <span class="tab-cnt">{{ playlistCount }}</span>
+      </button>
+    </nav>
+
+    <!-- === 全部音乐 === -->
+    <div v-show="activeTab === 'all'">
+      <!-- 工具栏 -->
+      <div class="toolbar">
+        <template v-if="!isLoggedIn">
+          <el-button class="tbtn-ghost" size="small" @click="loginDialogVisible = true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+            登录
+          </el-button>
+        </template>
+        <template v-else>
+          <el-button class="tbtn-ghost" size="small" @click="handleLogout">退出</el-button>
+          <el-button class="tbtn-ghost" size="small" @click="openSyncDialog" :loading="syncing">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            同步
+          </el-button>
+        </template>
+        <el-button class="tbtn-primary" size="small" @click="openAddDialog">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          添加
         </el-button>
-        <span class="breadcrumb-sep">/</span>
-        <span class="breadcrumb-current">📁 {{ currentPlaylistName }}</span>
-        <span class="breadcrumb-count">{{ total }} 首</span>
+        <el-button class="tbtn-ghost" size="small" @click="importDialogVisible = true">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          导入
+        </el-button>
+        <div class="export-wrap" :class="{ open: exportOpen }">
+          <button class="tbtn-ghost el-button" @click="exportOpen = !exportOpen">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            导出
+          </button>
+          <div v-if="exportOpen" class="export-drop">
+            <div class="export-opts">
+              <label class="exp-opt"><input type="checkbox" v-model="expAlbum"> 包含专辑</label>
+              <label class="exp-opt"><input type="checkbox" v-model="expNotes"> 包含备注</label>
+            </div>
+            <button @click="handleExport('dash'); exportOpen = false">横杠 (- 歌手 - 歌名)</button>
+            <button @click="handleExport('pipe'); exportOpen = false">竖线 (⭐ 5星 | 歌手 | 歌名)</button>
+            <button @click="handleExport('text'); exportOpen = false">文字 (歌手：…，歌名：…)</button>
+          </div>
+        </div>
+        <div v-if="exportOpen" class="fselect-backdrop" @click="exportOpen = false" />
+      </div>
+
+      <!-- 筛选 -->
+      <FilterBar v-model="filter" :singers="singerList" @filter-change="onFilterChange" />
+
+      <!-- 歌曲列表 -->
+      <div style="margin-top:8px">
+        <MusicTable
+          :data="tableData"
+          :total="statsTotal"
+          :selected-ids="selectedIds"
+          :selected-count="selectedIds.length"
+          :current-page="currentPage"
+          :page-size="pageSize"
+          @update:current-page="currentPage = $event"
+          @page-change="fetchData"
+          @selection-change="handleSelectionChange"
+          @select-all="handleSelectAll"
+          @batch-delete-click="handleBatchDelete"
+          @star-change="handleStarChange"
+          @row-delete="handleRowDelete"
+          @row-click="handleRowClick"
+        />
       </div>
     </div>
 
-    <!-- 主体 -->
-    <main class="app-main">
-      <el-tabs v-model="activeTab" class="main-tabs" @tab-change="handleTabChange">
-        <el-tab-pane name="all">
-          <template #label><span class="tab-label">🎧 全部音乐</span></template>
-          <div class="tab-content">
-            <div class="toolbar-row">
-              <FilterBar v-model="filter" :singers="singerList" @filter-change="fetchData" />
-              <ActionBar
-                v-model:keyword="keyword"
-                :is-logged-in="isLoggedIn"
-                :syncing="syncing"
-                :selected-count="selectedIds.length"
-                @search="fetchData"
-                @login-click="loginDialogVisible = true"
-                @logout-click="handleLogout"
-                @sync-click="openSyncDialog"
-                @add-click="addDialogVisible = true"
-                @import-click="importDialogVisible = true"
-                @batch-delete-click="handleBatchDelete"
-                @export-click="handleExport"
-              />
-            </div>
-            <MusicTable
-              :data="tableData"
-              :total="total"
-              :selected-count="selectedIds.length"
-              v-model:current-page="currentPage"
-              v-model:page-size="pageSize"
-              @page-change="fetchData"
-              @selection-change="handleSelectionChange"
-              @batch-delete-click="handleBatchDelete"
-            />
-          </div>
-        </el-tab-pane>
-        <el-tab-pane name="playlists">
-          <template #label><span class="tab-label">📁 我的歌单</span></template>
-          <PlaylistGrid :playlists="playlists" @select="goToPlaylist" />
-        </el-tab-pane>
-      </el-tabs>
-    </main>
+    <!-- === 我的歌单 === -->
+    <div v-show="activeTab === 'playlists'">
+      <PlaylistGrid
+        :playlists="playlists"
+        @select="goToPlaylist"
+        @delete-playlist="handlePlaylistDelete"
+      />
+    </div>
 
-    <!-- 弹窗 -->
-    <AddMusicDialog v-model="addDialogVisible" @submit="handleAddMusic" />
+    <!-- === 弹窗 === -->
+    <!-- 底部编辑 Sheet -->
+    <AddMusicDialog
+      ref="editSheetRef"
+      v-model="addDialogVisible"
+      v-model:song="editingSong"
+      :playlists="playlists"
+      @submit="handleAddOrEdit"
+      @delete-click="handleDialogDelete"
+    />
+
+    <!-- 其他弹窗（保留 el-dialog） -->
     <TextImportDialog v-model="importDialogVisible" @import="handleTextImport" />
     <LoginDialog v-model="loginDialogVisible" @login-success="handleLoginSuccess" />
     <KugouSyncDialog
       v-model="syncDialogVisible"
-      :playlists="kugouPlaylists"
-      :loading="loadingPlaylists"
-      :syncing="syncing"
+      :playlists="kugouPlaylists" :loading="loadingPlaylists" :syncing="syncing"
       @sync="handleKugouSync"
     />
   </div>
@@ -87,53 +161,71 @@
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import FilterBar from '../components/FilterBar.vue'
-import ActionBar from '../components/ActionBar.vue'
 import MusicTable from '../components/MusicTable.vue'
 import PlaylistGrid from '../components/PlaylistGrid.vue'
 import AddMusicDialog from '../components/AddMusicDialog.vue'
 import TextImportDialog from '../components/TextImportDialog.vue'
 import LoginDialog from '../components/LoginDialog.vue'
 import KugouSyncDialog from '../components/KugouSyncDialog.vue'
-import { getMusicPage, getMusicList, addMusic, batchImportMusic, batchDeleteMusic } from '../api/music'
-import { getPlaylists } from '../api/playlist'
-import { getKugouPlaylists, batchImportToPlaylist, getTokenStatus } from '../api/kugou'
+import {
+  getMusicPage, getMusicList, getMusicStats,
+  addMusic, batchImportMusic, batchDeleteMusic,
+  updateMusic, deleteMusic, updateStarRating,
+  getSongPlaylists, updateSongPlaylists
+} from '../api/music'
+import { getPlaylists, deletePlaylist, createPlaylist } from '../api/playlist'
+import { getTokenStatus } from '../api/kugou'
 import axios from 'axios'
 
 // ===== 状态 =====
 const isLoggedIn = ref(false)
 const activeTab = ref('all')
 const tableData = ref([])
-const total = ref(0)
+const statsTotal = ref(0)
+const statsAvg = ref('0')
 const currentPage = ref(1)
-const pageSize = ref(10)
+const pageSize = ref(8)
 const keyword = ref('')
 const selectedIds = ref([])
-const filter = ref({ singer: '', starRating: null, hasStar: null })
+const filter = ref({ singer: '', starRatingMin: null, starRatingMax: null, hasStar: null })
 const playlists = ref([])
 const currentPlaylistId = ref(null)
 const currentPlaylistName = ref('')
 const addDialogVisible = ref(false)
+const editingSong = ref(null)
+const editSheetRef = ref(null)
 const importDialogVisible = ref(false)
 const loginDialogVisible = ref(false)
 const syncDialogVisible = ref(false)
 const syncing = ref(false)
 const loadingPlaylists = ref(false)
 const kugouPlaylists = ref([])
+const exportOpen = ref(false)
+const expAlbum = ref(true)
+const expNotes = ref(true)
 
-// ===== 计算属性 =====
-const singerList = computed(() => {
-  const singers = new Set()
-  tableData.value.forEach(i => singers.add(i.artist))
-  return [...singers].sort()
-})
+// ===== 计算 =====
+const singerList = ref([])  // 从全部歌曲中获取，不依赖当前筛选
 const playlistCount = computed(() => playlists.value.length || 0)
-const avgRating = computed(() => {
-  const rated = tableData.value.filter(i => i.starRating > 0)
-  if (!rated.length) return 0
-  return (rated.reduce((s, i) => s + Number(i.starRating), 0) / rated.length).toFixed(1)
-})
 
-// ===== 数据 =====
+// 加载全部歌手列表（不受筛选影响）
+async function fetchSingerList() {
+  try {
+    const r = await getMusicList({})
+    const all = r.data?.data || r.data || []
+    const s = new Set(); all.forEach(i => { if (i.artist) s.add(i.artist) })
+    singerList.value = [...s].sort()
+  } catch {}
+}
+
+// ===== 搜索防抖 =====
+let st = null
+function onSearchDebounce() {
+  clearTimeout(st)
+  st = setTimeout(() => { currentPage.value = 1; fetchData(); fetchStats() }, 300)
+}
+
+// ===== 数据获取 =====
 async function fetchData() {
   try {
     const res = await getMusicPage({
@@ -141,22 +233,48 @@ async function fetchData() {
       keyword: keyword.value || undefined,
       playlistId: currentPlaylistId.value || undefined,
       singer: filter.value.singer || undefined,
-      starRating: filter.value.starRating ?? undefined,
+      starRatingMin: filter.value.starRatingMin ?? undefined,
+      starRatingMax: filter.value.starRatingMax ?? undefined,
       hasStar: filter.value.hasStar !== null ? filter.value.hasStar : undefined
     })
     const b = res.data
     tableData.value = b.data?.records || b.records || []
-    total.value = b.data?.total || b.total || 0
-  } catch (e) { ElMessage.error(e.message || '加载失败，请检查后端是否启动') }
+    // total 取自 stats 端点，这里仅取页面数据
+    if (!currentPlaylistId.value && !keyword.value && !filter.value.singer && filter.value.starRatingMin == null && filter.value.starRatingMax == null && filter.value.hasStar == null) {
+      // 无筛选时用 stats 的 total
+    }
+  } catch (e) { ElMessage.error(e.message || '加载失败') }
+}
+
+async function fetchStats() {
+  try {
+    const res = await getMusicStats({
+      keyword: keyword.value || undefined,
+      singer: filter.value.singer || undefined,
+      starRatingMin: filter.value.starRatingMin ?? undefined,
+      starRatingMax: filter.value.starRatingMax ?? undefined,
+      hasStar: filter.value.hasStar !== null ? filter.value.hasStar : undefined,
+      playlistId: currentPlaylistId.value || undefined
+    })
+    const d = res.data?.data || res.data || {}
+    statsTotal.value = d.total || 0
+    const avg = d.avgRating || 0
+    statsAvg.value = Number(avg) > 0 ? Number(avg).toFixed(1) : '0'
+  } catch {}
 }
 
 async function fetchPlaylists() {
-  try { const res = await getPlaylists(); playlists.value = res.data?.data || res.data || [] } catch {}
+  try {
+    const res = await getPlaylists()
+    playlists.value = res.data?.data || res.data || []
+  } catch {}
 }
 
-function handleTabChange() {
-  if (activeTab.value === 'playlists') fetchPlaylists()
-  else { resetFilters(); fetchData() }
+// ===== 标签 / 歌单导航 =====
+function switchTo(tab) {
+  activeTab.value = tab
+  if (tab === 'playlists') fetchPlaylists()
+  else { fetchData(); fetchStats() }
 }
 
 function goToPlaylist(p) {
@@ -165,177 +283,578 @@ function goToPlaylist(p) {
   currentPlaylistName.value = p.name
   activeTab.value = 'all'
   fetchData()
+  fetchStats()
 }
 
-function backToAll() { currentPlaylistName.value = ''; resetFilters(); fetchData() }
+function backToAll() {
+  currentPlaylistName.value = ''
+  currentPlaylistId.value = null
+  resetFilters()
+  fetchData()
+  fetchStats()
+}
 
 function resetFilters() {
-  filter.value = { singer: '', starRating: null, hasStar: null }
+  filter.value = { singer: '', starRatingMin: null, starRatingMax: null, hasStar: null }
   keyword.value = ''
   currentPlaylistId.value = null
 }
 
+function onFilterChange() {
+  currentPage.value = 1
+  fetchData()
+  fetchStats()
+}
+
 // ===== 歌曲操作 =====
-async function handleAddMusic(song) {
-  try { await addMusic(song); ElMessage.success('添加成功'); fetchData() }
-  catch (e) { ElMessage.error(e.message || '添加失败') }
-}
+function handleSelectionChange(ids) { selectedIds.value = ids }
 
-async function handleTextImport(musicList) {
+async function handleSelectAll() {
   try {
-    const res = await batchImportMusic(musicList)
-    ElMessage.success(res.data?.message || `成功导入 ${musicList.length} 首`)
-    fetchData(); fetchPlaylists()
-  } catch (e) { ElMessage.error(e.message || '导入失败'); throw e }
-}
-
-function handleSelectionChange(s) { selectedIds.value = s.map(i => i.id) }
-
-async function handleBatchDelete() {
-  try {
-    await ElMessageBox.confirm(`删除 ${selectedIds.value.length} 首歌曲？`, '确认', { type: 'warning' })
-    await batchDeleteMusic(selectedIds.value)
-    ElMessage.success('已删除'); selectedIds.value = []
-    fetchData(); fetchPlaylists()
-  } catch (e) { if (e !== 'cancel' && e !== 'close') ElMessage.error(e.message) }
-}
-
-// ===== 导出 =====
-async function handleExport() {
-  try {
-    let songs
-    if (selectedIds.value.length) songs = tableData.value.filter(i => selectedIds.value.includes(i.id))
-    else {
-      const res = await getMusicList({
-        keyword: keyword.value || undefined, singer: filter.value.singer || undefined,
-        starRating: filter.value.starRating ?? undefined, hasStar: filter.value.hasStar ?? undefined
+    // 获取所有匹配筛选条件的歌曲ID
+    let allSongs
+    if (currentPlaylistId.value) {
+      // 歌单内：用分页接口拉取全部
+      const r = await getMusicPage({
+        current: 1, size: 9999,
+        playlistId: currentPlaylistId.value,
+        keyword: keyword.value || undefined,
+        singer: filter.value.singer || undefined,
+        starRatingMin: filter.value.starRatingMin ?? undefined,
+      starRatingMax: filter.value.starRatingMax ?? undefined,
+        hasStar: filter.value.hasStar !== null ? filter.value.hasStar : undefined
       })
-      songs = res.data?.data || res.data || []
+      allSongs = r.data?.data?.records || r.data?.records || []
+    } else {
+      const r = await getMusicList({
+        keyword: keyword.value || undefined,
+        singer: filter.value.singer || undefined,
+        starRatingMin: filter.value.starRatingMin ?? undefined,
+      starRatingMax: filter.value.starRatingMax ?? undefined,
+        hasStar: filter.value.hasStar ?? undefined
+      })
+      allSongs = r.data?.data || r.data || []
     }
-    if (!songs.length) return ElMessage.warning('无数据')
-    const out = songs.map(s => `⭐ ${s.starRating > 0 ? s.starRating + '星' : '未打星'} | ${s.artist} - ${s.title}`).join('\n')
-    await navigator.clipboard.writeText(out)
-    ElMessage.success(`已复制 ${songs.length} 首`)
-  } catch (e) { ElMessage.error(e.message || '复制失败') }
+    selectedIds.value = allSongs.map(s => s.id)
+    ElMessage.success(`已选 ${selectedIds.value.length} 首`)
+  } catch (e) {
+    ElMessage.error('获取全量歌曲失败')
+  }
 }
 
-// ===== 登录 =====
-function handleLoginSuccess(token) { applyToken(token) }
-function handleLogout() { localStorage.removeItem('kugou_token'); delete axios.defaults.headers.common['X-Kugou-Token']; document.cookie = 'token=; path=/; max-age=0'; isLoggedIn.value = false }
-function applyToken(token) {
-  localStorage.setItem('kugou_token', token)
-  isLoggedIn.value = true
-  axios.defaults.headers.common['X-Kugou-Token'] = token
-  // 同时写浏览器 Cookie，Nginx 代理时自动携带给酷狗 API
-  document.cookie = `token=${token}; path=/; max-age=2592000; SameSite=Lax`
+function openAddDialog() {
+  editingSong.value = null
+  addDialogVisible.value = true
 }
 
-async function checkLogin() {
-  const localToken = localStorage.getItem('kugou_token')
-  if (localToken) { applyToken(localToken); return }
-  // 本地无 token，从后端获取（多设备共享）
+async function handleRowClick(row) {
+  editingSong.value = { ...row }
+  addDialogVisible.value = true
+  // 获取歌曲的歌单归属
   try {
-    const res = await getTokenStatus()
-    const backendToken = res.data?.data?.token || res.data?.token
-    if (backendToken) applyToken(backendToken)
+    const res = await getSongPlaylists(row.id)
+    const pls = res.data?.data || res.data || []
+    // 延迟设置，等 sheet 渲染完成
+    setTimeout(() => {
+      if (editSheetRef.value) {
+        editSheetRef.value.setSongPlaylists(pls)
+      }
+    }, 100)
   } catch {}
 }
 
+async function handleAddOrEdit(payload) {
+  try {
+    let songId = payload.id
+
+    if (songId) {
+      // 编辑模式
+      await updateMusic(songId, {
+        artist: payload.artist,
+        title: payload.title,
+        album: payload.album,
+        starRating: payload.starRating,
+        notes: payload.notes
+      })
+      ElMessage.success('已更新')
+    } else {
+      // 新建模式
+      const res = await addMusic(payload)
+      const saved = res.data?.data || res.data
+      songId = saved.id
+      ElMessage.success('已添加')
+    }
+
+    // 处理歌单归属
+    if (songId && payload._playlists && payload._playlists.length) {
+      const playlistIds = []
+      for (const pl of payload._playlists) {
+        if (pl.isNew) {
+          // 创建新歌单
+          const cr = await createPlaylist(pl.name)
+          const created = cr.data?.data || cr.data
+          playlistIds.push(created.id)
+        } else if (pl.id) {
+          playlistIds.push(pl.id)
+        }
+      }
+      if (playlistIds.length) {
+        await updateSongPlaylists(songId, playlistIds)
+      }
+    } else if (songId && (!payload._playlists || !payload._playlists.length)) {
+      // 清空歌单归属
+      await updateSongPlaylists(songId, [])
+    }
+
+    editingSong.value = null
+    fetchData()
+    fetchStats()
+    fetchPlaylists()
+  } catch (e) {
+    ElMessage.error(e.message || (payload.id ? '更新失败' : '添加失败'))
+    throw e
+  }
+}
+
+async function handleStarChange(row, newRating) {
+  try {
+    await updateStarRating(row.id, newRating)
+    row.starRating = newRating
+    fetchStats()
+  } catch (e) { ElMessage.error(e.message) }
+}
+
+async function handleRowDelete(row) {
+  if (!row?.id) return
+  try {
+    await ElMessageBox.confirm(
+      `删除「${row.artist} - ${row.title}」？`,
+      '确认删除',
+      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' }
+    )
+    await deleteMusic(row.id)
+    ElMessage.success('已删除')
+    // 清理已选列表中被删除的歌曲
+    selectedIds.value = selectedIds.value.filter(id => id !== row.id)
+    addDialogVisible.value = false
+    editingSong.value = null
+    fetchData()
+    fetchStats()
+    fetchPlaylists()
+    fetchSingerList()
+  } catch (e) {
+    if (e !== 'cancel' && e !== 'close') ElMessage.error(e.message)
+  }
+}
+
+function handleDialogDelete() {
+  if (!editingSong.value?.id) return
+  handleRowDelete(editingSong.value)
+}
+
+async function handleBatchDelete() {
+  try {
+    await ElMessageBox.confirm(
+      `删除选中的 ${selectedIds.value.length} 首？`,
+      '确认',
+      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' }
+    )
+    await batchDeleteMusic(selectedIds.value)
+    ElMessage.success('已删除')
+    selectedIds.value = []
+    fetchData()
+    fetchStats()
+    fetchPlaylists()
+    fetchSingerList()
+  } catch (e) {
+    if (e !== 'cancel' && e !== 'close') ElMessage.error(e.message)
+  }
+}
+
+// ===== 歌单删除 =====
+async function handlePlaylistDelete(playlist) {
+  try {
+    await ElMessageBox.confirm(
+      `删除歌单「${playlist.name}」？\n仅属于此歌单的歌曲将被一并删除。`,
+      '确认删除歌单',
+      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' }
+    )
+    await deletePlaylist(playlist.id)
+    ElMessage.success('歌单已删除')
+    fetchPlaylists()
+    fetchData()
+    fetchStats()
+    fetchSingerList()
+  } catch (e) {
+    if (e !== 'cancel' && e !== 'close') ElMessage.error(e.message)
+  }
+}
+
+// ===== 导入 / 导出 =====
+async function handleTextImport(list) {
+  try {
+    const r = await batchImportMusic(list)
+    ElMessage.success(r.data?.message || `导入 ${list.length} 首`)
+    fetchData()
+    fetchStats()
+    fetchPlaylists()
+    fetchSingerList()
+  } catch (e) {
+    ElMessage.error(e.message || '导入失败')
+    throw e
+  }
+}
+
+async function handleExport(fmt) {
+  try {
+    let songs
+    if (selectedIds.value.length) {
+      songs = tableData.value.filter(i => selectedIds.value.includes(i.id))
+    } else {
+      const r = await getMusicList({
+        keyword: keyword.value || undefined,
+        singer: filter.value.singer || undefined,
+        starRatingMin: filter.value.starRatingMin ?? undefined,
+      starRatingMax: filter.value.starRatingMax ?? undefined,
+        hasStar: filter.value.hasStar ?? undefined,
+      })
+      songs = r.data?.data || r.data || []
+    }
+    if (!songs.length) return ElMessage.warning('无数据')
+
+    // 按评分降序排列
+    songs.sort((a, b) => (Number(b.starRating) || 0) - (Number(a.starRating) || 0))
+
+    let out = ''
+    if (fmt === 'pipe') {
+      let currentStar = -1
+      out = songs.map(s => {
+        const star = Number(s.starRating) || 0
+        const starLine = star !== currentStar ? (currentStar = star, `⭐ ${star > 0 ? star + '星' : '未评分'}\n`) : ''
+        const album = (expAlbum.value && s.album) ? ` | ${s.album}` : ''
+        const notes = (expNotes.value && s.notes) ? ` | "${s.notes}"` : ''
+        return starLine + `${s.artist} | ${s.title}${album}${notes}`
+      }).join('\n')
+    } else if (fmt === 'text') {
+      let currentStar = -1
+      out = songs.map(s => {
+        const star = Number(s.starRating) || 0
+        const starLine = star !== currentStar ? (currentStar = star, `${star > 0 ? star + '星' : '未评分'}\n`) : ''
+        const album = (expAlbum.value && s.album) ? `，专辑：${s.album}` : ''
+        const notes = (expNotes.value && s.notes) ? `，备注：${s.notes}` : ''
+        return starLine + `歌手：${s.artist}，歌名：${s.title}${album}${notes}`
+      }).join('\n')
+    } else {
+      // 横杠风格
+      let currentStar = -1
+      out = songs.map(s => {
+        const star = Number(s.starRating) || 0
+        const starLine = star !== currentStar ? (currentStar = star, `${star > 0 ? star + '星' : '未评分'}\n`) : ''
+        const album = (expAlbum.value && s.album) ? ` - ${s.album}` : ''
+        const notes = (expNotes.value && s.notes) ? ` "${s.notes}"` : ''
+        return starLine + `- ${s.artist} - ${s.title}${album}${notes}`
+      }).join('\n')
+    }
+
+    await navigator.clipboard.writeText(out.trim())
+    ElMessage.success(`已复制 ${songs.length} 首 (${fmt === 'pipe' ? '竖线' : fmt === 'text' ? '文字' : '横杠'}风格)`)
+  } catch (e) { ElMessage.error(e.message) }
+}
+
+// ===== 登录 =====
+function handleLoginSuccess(t) { applyToken(t) }
+function handleLogout() {
+  localStorage.removeItem('kugou_token')
+  delete axios.defaults.headers.common['X-Kugou-Token']
+  document.cookie = 'token=; path=/; max-age=0'
+  isLoggedIn.value = false
+}
+function applyToken(t) {
+  localStorage.setItem('kugou_token', t)
+  isLoggedIn.value = true
+  axios.defaults.headers.common['X-Kugou-Token'] = t
+  document.cookie = `token=${t}; path=/; max-age=2592000; SameSite=Lax`
+  document.cookie = `userid=2150217007; path=/; max-age=2592000; SameSite=Lax`
+  document.cookie = `dfid=6ef29622fa1a716815dce182ef0356d5; path=/; max-age=2592000; SameSite=Lax`
+  document.cookie = `mid=39d79bd96d1ef95ba28f2bcee4c199ae; path=/; max-age=2592000; SameSite=Lax`
+}
+async function checkLogin() {
+  try {
+    const r = await getTokenStatus()
+    const bt = r.data?.data?.token || r.data?.token
+    if (bt) { applyToken(bt); return }
+  } catch {}
+  const lt = localStorage.getItem('kugou_token')
+  if (lt) applyToken(lt)
+}
+
 // ===== 酷狗同步 =====
+
+/** 检查酷狗响应是否成功或 token 过期 */
+function checkKugouData(data) {
+  if (!data) return 'empty'
+  const ec = data.error_code
+  if (ec === 0 || data.status === 1) return 'ok'
+  if (ec === 20010 || ec === 20017) {
+    ElMessage.error('酷狗登录已过期，请重新登录')
+    handleLogout()
+    return 'expired'
+  }
+  if (ec) {
+    ElMessage.error('酷狗API错误 (error_code=' + ec + ')')
+    return 'error'
+  }
+  return 'ok'
+}
+
+/** 从 axios 错误中提取响应数据并检查 */
+function checkKugouError(e) {
+  const data = e.response?.data
+  const result = checkKugouData(data)
+  if (result !== 'empty') return result
+  // 真正的网络错误
+  const status = e.response?.status
+  if (status === 502 || !e.response) {
+    ElMessage.error('无法连接酷狗服务，请确认 KuGouMusicApi 已启动 (端口3000)')
+  } else {
+    ElMessage.error('获取歌单失败')
+  }
+  return 'error'
+}
+
 async function openSyncDialog() {
   if (!isLoggedIn.value) { ElMessage.warning('请先登录'); loginDialogVisible.value = true; return }
   syncDialogVisible.value = true; loadingPlaylists.value = true
   try {
-    const kugouRes = await axios.get('/kugou/user/playlist')
-    if (kugouRes.data?.error_code === 0 || kugouRes.data?.status === 1) {
-      const uid = '2150217007'
-      kugouPlaylists.value = (kugouRes.data?.data?.info || kugouRes.data?.data || [])
-        .filter(p => String(p.list_create_userid || p.userid) === uid)
-        .map(p => ({ id: p.global_collection_id || p.id, name: p.name, coverUrl: (p.pic || '').replace('{size}', '200'), trackCount: p.count || 0 }))
-    } else if (kugouRes.data?.error_code === 20010 || kugouRes.data?.error_code === 20017) {
-      ElMessage.error('登录已过期，请重新登录'); handleLogout(); syncDialogVisible.value = false; return
-    }
-  } catch { ElMessage.error('获取酷狗歌单失败'); syncDialogVisible.value = false; return }
-  loadingPlaylists.value = false
-  kugouPlaylists.value.length ? ElMessage.success(`获取到 ${kugouPlaylists.value.length} 个歌单`) : ElMessage.warning('无自建歌单')
-}
+    const r = await axios.get('/kugou/user/playlist')
+    const status = checkKugouData(r.data)
+    if (status !== 'ok') { syncDialogVisible.value = false; loadingPlaylists.value = false; return }
 
-async function handleKugouSync(selectedIds) {
-  syncing.value = true; let totalImported = 0
-  try {
-    for (const pid of selectedIds) {
-      const pl = kugouPlaylists.value.find(p => p.id === pid)
-      if (!pl) continue
-      ElMessage.info(`导入: ${pl.name}...`)
-      await new Promise(r => setTimeout(r, 800))
-      const r = await axios.get(`/kugou/playlist/track/all?id=${pid}`)
-      if (r.data?.error_code === 20010 || r.data?.error_code === 20017) { ElMessage.error('登录过期'); handleLogout(); return }
-      const songsData = r.data?.data?.songs || r.data?.songs || r.data?.data || []
-      if (!songsData.length) continue
-      const songs = songsData.map(s => {
-        const si = s.singerinfo?.[0] || {}
-        return { title: (s.name || '').replace(`${si.name} - `, ''), artist: si.name || '未知', album: s.albuminfo?.name || '', coverUrl: (s.cover || '').replace('{size}', '200') }
+    kugouPlaylists.value = (r.data?.data?.info || r.data?.data || [])
+      .filter(p => {
+        const uid = String(p.list_create_userid || p.userid || '')
+        return p.is_mine === 1 || uid === '2150217007'
       })
-      const ir = await batchImportToPlaylist(songs, pl.name, pl.coverUrl)
-      totalImported += ir.data?.data?.newMusicCount || songs.length
-    }
-    ElMessage.success(`同步完成！导入 ${totalImported} 首`)
-    syncDialogVisible.value = false; fetchData(); fetchPlaylists()
-  } catch (e) { ElMessage.error('同步失败: ' + (e.message || '')) }
-  finally { syncing.value = false }
+      .map(p => ({
+        id: p.global_collection_id || p.id,
+        name: p.name,
+        coverUrl: (p.pic || '').replace('{size}', '200'),
+        trackCount: p.count || 0
+      }))
+  } catch (e) {
+    checkKugouError(e)
+    syncDialogVisible.value = false; loadingPlaylists.value = false; return
+  }
+  loadingPlaylists.value = false
+  kugouPlaylists.value.length
+    ? ElMessage.success(`获取 ${kugouPlaylists.value.length} 个歌单`)
+    : ElMessage.warning('无自建歌单')
 }
 
-onMounted(() => { checkLogin(); fetchData() })
+async function handleKugouSync(ids) {
+  syncing.value = true; let n = 0
+  let expired = false
+  try {
+    for (const pid of ids) {
+      const pl = kugouPlaylists.value.find(p => p.id === pid); if (!pl) continue
+      ElMessage.info(`导入: ${pl.name}...`); await new Promise(r => setTimeout(r, 800))
+      try {
+        const r = await axios.get(`/kugou/playlist/track/all?id=${pid}`)
+        const status = checkKugouData(r.data)
+        if (status === 'expired') { expired = true; return }
+        if (status !== 'ok') continue
+
+        const sd = r.data?.data?.songs || r.data?.songs || r.data?.data || []
+        if (!sd.length) continue
+        const tracks = sd.map(s => {
+          const si = s.singerinfo?.[0] || {}
+          return {
+            title: (s.name || '').replace(`${si.name} - `, ''),
+            artist: si.name || '未知',
+            album: s.albuminfo?.name || '',
+            coverUrl: (s.cover || '').replace('{size}', '200')
+          }
+        })
+        const axiosRes = await axios.post('/api/sync/batch', tracks, {
+          params: { category: pl.name, playlistCover: pl.coverUrl }
+        })
+        n += axiosRes.data?.data?.newMusicCount || tracks.length
+      } catch (e) {
+        const status = checkKugouError(e)
+        if (status === 'expired') { expired = true; return }
+      }
+    }
+    ElMessage.success(`同步完成！导入 ${n} 首`)
+    syncDialogVisible.value = false
+    fetchData(); fetchStats(); fetchPlaylists(); fetchSingerList()
+  } catch (e) {
+    if (!expired) ElMessage.error('同步失败')
+  } finally { syncing.value = false }
+}
+
+// ===== 初始化 =====
+onMounted(() => {
+  checkLogin()
+  fetchData()
+  fetchStats()
+  fetchPlaylists()
+  fetchSingerList()  // 获取全部歌手（不受筛选影响）
+})
 </script>
 
 <style scoped>
-.app-shell { min-height: 100vh; background: var(--bg); }
-
-/* 头部 */
-.app-header {
-  background: #ffffff;
-  border-bottom: 1px solid var(--border);
-  position: sticky; top: 0; z-index: 100;
-}
-.header-inner {
-  max-width: 1200px; margin: 0 auto; padding: 16px 24px;
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-}
-.header-brand { display: flex; align-items: center; gap: 10px; }
-.brand-icon { font-size: 24px; }
-.brand-title { font-size: 20px; font-weight: 700; margin: 0; color: var(--text); letter-spacing: -0.5px; }
-.header-meta { display: flex; gap: 8px; }
-.meta-badge {
-  font-size: 13px; color: var(--text-secondary); background: var(--bg);
-  padding: 4px 12px; border-radius: 20px; font-weight: 500;
+.app-shell {
+  min-height: 100dvh;
+  background: var(--bg);
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 0 20px calc(80px + var(--safe));
 }
 
-/* 面包屑 */
+/* === 头部 === */
+.app-header { padding: 32px 0 20px; }
+.header-top { display: flex; align-items: baseline; justify-content: space-between; }
+.header-top h1 {
+  font-size: 24px; font-weight: 300; letter-spacing: 1px; color: var(--text);
+  margin: 0; line-height: 1.3;
+}
+.header-sub { font-size: 13px; color: var(--text-muted); font-weight: 400; }
+.stats-line { display: flex; gap: 24px; margin-top: 16px; }
+.st-item { display: flex; align-items: baseline; gap: 6px; }
+.st-num {
+  font-size: 28px; font-weight: 200; color: var(--text);
+  letter-spacing: -0.5px; line-height: 1;
+}
+.st-lbl { font-size: 12px; color: var(--text-muted); font-weight: 400; }
+
+/* === 搜索 === */
+.search-wrap {
+  position: relative; margin-bottom: 20px;
+}
+.search-input {
+  width: 100%; height: 48px; padding: 0 20px 0 42px;
+  background: var(--surface); border: 1px solid var(--border-light);
+  border-radius: 24px; font-size: 15px; color: var(--text);
+  outline: none; transition: all 0.25s; font-family: inherit;
+}
+.search-input::placeholder { color: var(--text-muted); }
+.search-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px var(--primary-bg);
+}
+.search-icon {
+  position: absolute; left: 16px; top: 50%;
+  transform: translateY(-50%); pointer-events: none;
+}
+
+/* === 面包屑 === */
 .breadcrumb-bar {
-  background: #fff; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 0; margin-bottom: 12px;
+  border-bottom: 1px solid var(--border-light); font-size: 13px;
 }
-.breadcrumb-inner {
-  max-width: 1200px; margin: 0 auto; padding: 10px 24px;
-  display: flex; align-items: center; gap: 8px; font-size: 14px;
+.bread-back {
+  color: var(--primary); font-weight: 500;
+  background: none; border: none; cursor: pointer;
+  font-size: 13px; padding: 4px 0; font-family: inherit;
 }
-.breadcrumb-back { color: var(--primary); font-weight: 500; padding: 4px 8px; }
-.breadcrumb-sep { color: var(--text-muted); }
-.breadcrumb-current { font-weight: 600; color: var(--text); }
-.breadcrumb-count { color: var(--text-muted); font-size: 13px; margin-left: 4px; }
+.bread-sep, .bread-cnt { color: var(--text-muted); }
+.bread-cur { font-weight: 500; }
 
-/* 主体 */
-.app-main { max-width: 1200px; margin: 0 auto; padding: 20px 24px 40px; }
-.main-tabs { background: transparent; }
-.main-tabs :deep(.el-tabs__header) { margin-bottom: 0; background: #fff; border-radius: var(--radius) var(--radius) 0 0; padding: 0 16px; border: 1px solid var(--border); border-bottom: none; }
-.main-tabs :deep(.el-tabs__nav-wrap) { padding-top: 8px; }
-.main-tabs :deep(.el-tabs__item) { font-size: 15px; height: 44px; line-height: 44px; }
-.tab-content { background: #fff; border: 1px solid var(--border); border-top: none; border-radius: 0 0 var(--radius) var(--radius); padding: 20px; }
-.toolbar-row { display: flex; flex-direction: column; gap: 12px; margin-bottom: 4px; }
+/* === 标签切换 === */
+.app-tabs {
+  display: flex; gap: 28px; margin-bottom: 18px;
+  border-bottom: 1px solid var(--border-light); padding-bottom: 10px;
+}
+.tab-btn {
+  font-size: 14px; font-weight: 400; color: var(--text-muted);
+  cursor: pointer; border: none; background: none;
+  padding: 4px 0; transition: color 0.2s; position: relative;
+  display: flex; align-items: center; gap: 6px; font-family: inherit;
+}
+.tab-btn.active { color: var(--text); font-weight: 500; }
+.tab-btn.active::after {
+  content: ''; position: absolute; bottom: -11px; left: 0; right: 0;
+  height: 2px; background: var(--primary); border-radius: 1px;
+}
+.tab-cnt { font-size: 11px; color: var(--text-muted); margin-left: 4px; font-weight: 400; }
 
-@media (max-width: 768px) {
-  .header-inner { padding: 12px 16px; }
-  .brand-title { font-size: 17px; }
-  .app-main { padding: 12px 8px 30px; }
-  .tab-content { padding: 12px; }
+/* === 工具栏 === */
+.toolbar {
+  display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; align-items: center;
+}
+:deep(.tbtn-primary) {
+  height: 36px !important; padding: 0 14px !important;
+  background: var(--primary) !important; color: #fff !important;
+  border: none !important; border-radius: 18px !important;
+  font-weight: 600 !important; font-size: 13px !important;
+}
+:deep(.tbtn-primary:hover) { background: var(--primary-hover) !important; }
+:deep(.tbtn-ghost) {
+  height: 36px !important; padding: 0 14px !important;
+  background: var(--surface) !important; color: var(--text-secondary) !important;
+  border: 1px solid var(--border-light) !important; border-radius: 18px !important;
+  font-size: 13px !important;
+}
+:deep(.tbtn-ghost:hover) { background: var(--bg-warm) !important; }
+
+/* === 导出下拉 === */
+.export-wrap {
+  position: relative; display: inline-flex;
+}
+.export-drop {
+  position: absolute; top: calc(100% + 4px); right: 0;
+  min-width: 200px;
+  background: var(--surface); border: 1px solid var(--border-light);
+  border-radius: 12px; box-shadow: var(--shadow-md);
+  padding: 6px; z-index: 50;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.export-drop button {
+  display: block; width: 100%; padding: 8px 14px; border: none;
+  background: transparent; border-radius: 8px;
+  font-size: 13px; color: var(--text-secondary); cursor: pointer;
+  text-align: left; font-family: inherit; white-space: nowrap;
+  transition: all 0.12s;
+}
+.export-drop button:hover { background: var(--bg-warm); color: var(--text); }
+.export-opts {
+  display: flex; gap: 12px; padding: 6px 10px 8px;
+  border-bottom: 1px solid var(--border-light); margin-bottom: 2px;
+}
+.exp-opt {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 12px; color: var(--text-secondary); cursor: pointer;
+  user-select: none;
+}
+.exp-opt input[type="checkbox"] {
+  accent-color: var(--primary); width: 14px; height: 14px;
+}
+.fselect-backdrop { position: fixed; inset: 0; z-index: 40; }
+
+/* ===== 响应式 ===== */
+
+/* 移动端 (<768px) */
+@media (max-width: 767px) {
+  .app-shell { padding: 0 16px calc(60px + var(--safe)); }
+  .app-header { padding: 24px 0 16px; }
+  .header-top h1 { font-size: 20px; }
+  .stats-line { gap: 18px; }
+  .st-num { font-size: 24px; }
+  .toolbar { gap: 4px; }
+}
+
+/* 平板 (≥768px) */
+@media (min-width: 768px) {
+  .app-shell { max-width: 600px; padding: 0 32px calc(80px + var(--safe)); }
+}
+
+/* 桌面端 (≥1024px) */
+@media (min-width: 1024px) {
+  .app-shell { max-width: 720px; }
+  .header-top h1 { font-size: 28px; }
+  .stats-line { gap: 36px; }
+  .st-num { font-size: 32px; }
+  .st-lbl { font-size: 13px; }
 }
 </style>

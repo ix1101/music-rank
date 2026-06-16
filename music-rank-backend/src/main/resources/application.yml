@@ -19,7 +19,7 @@ mybatis-plus:
 # token 来自手机号验证码登录返回的 token 字段
 # 可通过环境变量 KUGOU_TOKEN 覆盖
 kugou:
-  token: ${KUGOU_TOKEN:808524153282c8b3bb50ef7264f5536c817ff1520a5d118aac7c24695f3b55f2}
+  token: ${KUGOU_TOKEN:808524153282c8b3bb50ef7264f5536c2bd1156274359cf8283bb54277b24766}
 
 logging:
   level:

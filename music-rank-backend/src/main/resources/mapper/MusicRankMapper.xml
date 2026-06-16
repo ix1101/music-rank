@@ -3,10 +3,10 @@
 <mapper namespace="com.musicrank.mapper.MusicRankMapper">
     <!-- 修正后的批量插入SQL（已经删掉了category） -->
     <insert id="insertBatch">
-        INSERT INTO music_rank (title, artist, album, star_rating, cover_url, create_time)
+        INSERT INTO music_rank (title, artist, album, star_rating, cover_url, notes, create_time)
         VALUES
         <foreach collection="list" item="item" separator=",">
-            (#{item.title}, #{item.artist}, #{item.album}, #{item.starRating}, #{item.coverUrl}, #{item.createTime})
+            (#{item.title}, #{item.artist}, #{item.album}, #{item.starRating}, #{item.coverUrl}, #{item.notes}, #{item.createTime})
         </foreach>
     </insert>
 
@@ -18,8 +18,59 @@
         INNER JOIN playlist p ON pm.playlist_id = p.id
         WHERE pm.playlist_id = #{playlistId}
         <if test="keyword != null and keyword != ''">
-            AND (m.title LIKE CONCAT('%', #{keyword}, '%') OR m.artist LIKE CONCAT('%', #{keyword}, '%'))
+            AND (m.title LIKE CONCAT('%', #{keyword}, '%') OR m.artist LIKE CONCAT('%', #{keyword}, '%') OR m.album LIKE CONCAT('%', #{keyword}, '%'))
         </if>
         ORDER BY m.star_rating DESC, m.create_time DESC
+    </select>
+
+    <!-- 聚合统计：匹配条件的总歌曲数 + 已打分歌曲的均分 -->
+    <select id="selectStats" resultType="map">
+        SELECT
+            COUNT(*) AS total,
+            COALESCE(AVG(CASE WHEN m.star_rating > 0 THEN m.star_rating END), 0) AS avgRating
+        FROM music_rank m
+        <if test="playlistId != null">
+            INNER JOIN playlist_music pm ON m.id = pm.music_id
+        </if>
+        <where>
+            <if test="playlistId != null">
+                AND pm.playlist_id = #{playlistId}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (m.title LIKE CONCAT('%', #{keyword}, '%') OR m.artist LIKE CONCAT('%', #{keyword}, '%') OR m.album LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="singer != null and singer != ''">
+                AND m.artist = #{singer}
+            </if>
+            <if test="starRatingMin != null">
+                AND m.star_rating &gt;= #{starRatingMin}
+            </if>
+            <if test="starRatingMax != null">
+                AND m.star_rating &lt;= #{starRatingMax}
+            </if>
+            <if test="hasStar != null">
+                <if test="hasStar == true">
+                    AND m.star_rating > 0
+                </if>
+                <if test="hasStar == false">
+                    AND m.star_rating = 0
+                </if>
+            </if>
+            <if test="album != null and album != ''">
+                AND m.album LIKE CONCAT('%', #{album}, '%')
+            </if>
+        </where>
+    </select>
+
+    <!-- 批量查询歌曲所属的歌单名称 -->
+    <select id="selectPlaylistNamesByMusicIds" resultType="map">
+        SELECT pm.music_id AS musicId, p.name AS playlistName
+        FROM playlist_music pm
+        INNER JOIN playlist p ON pm.playlist_id = p.id
+        WHERE pm.music_id IN
+        <foreach collection="musicIds" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+        ORDER BY pm.create_time ASC
     </select>
 </mapper>

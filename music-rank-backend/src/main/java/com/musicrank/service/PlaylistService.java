@@ -17,4 +17,11 @@ public interface PlaylistService {
      * 根据名称查找歌单（不存在则创建）
      */
     Long getOrCreatePlaylist(String name, String coverUrl);
+
+    /**
+     * 删除歌单
+     * 逻辑：删除 playlist_music 关联；如果歌曲只属于此歌单则同时删除歌曲；
+     * 如果歌曲还属于其他歌单则只移除关联
+     */
+    int deletePlaylist(Long id);
 }

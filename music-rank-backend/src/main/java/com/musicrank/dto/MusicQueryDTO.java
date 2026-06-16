@@ -25,8 +25,11 @@ public class MusicQueryDTO {
     /** 按歌手精确筛选 */
     private String singer;
 
-    /** 按星级精确筛选 */
-    private BigDecimal starRating;
+    /** 星级下限（含） */
+    private BigDecimal starRatingMin;
+
+    /** 星级上限（含） */
+    private BigDecimal starRatingMax;
 
     /**
      * 是否已打星
@@ -35,4 +38,7 @@ public class MusicQueryDTO {
      * null: 不筛选
      */
     private Boolean hasStar;
+
+    /** 按专辑筛选（模糊匹配） */
+    private String album;
 }
