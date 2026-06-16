@@ -48,8 +48,8 @@ defineEmits(['select', 'delete-playlist'])
 .playlists-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 18px;
-  padding: 4px 0;
+  gap: 12px;
+  padding: 4px 24px;
 }
 
 .playlist-card {
@@ -57,6 +57,9 @@ defineEmits(['select', 'delete-playlist'])
   transition: transform 0.2s, box-shadow 0.2s;
   border-radius: var(--radius);
   overflow: hidden;
+  max-width: 150px;
+  margin: 0 auto;
+  width: 100%;
 }
 .playlist-card:hover { transform: translateY(-3px); }
 .playlist-card:active { transform: scale(0.97); }
@@ -112,7 +115,8 @@ defineEmits(['select', 'delete-playlist'])
 
 /* 桌面端 3 列 */
 @media (min-width: 768px) {
-  .playlists-grid { grid-template-columns: repeat(3, 1fr); gap: 24px; }
+  .playlists-grid { grid-template-columns: repeat(3, 1fr); gap: 20px; padding: 4px 0; }
+  .playlist-card { max-width: 140px; }
 }
 /* 移动端操作按钮始终可见 */
 @media (max-width: 767px) {

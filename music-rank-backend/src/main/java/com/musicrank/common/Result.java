@@ -30,7 +30,7 @@ public class Result<T> {
     public static <T> Result<T> success(T data) {
         Result<T> r = new Result<>();
         r.code = 200;
-        r.message = "success";
+        r.message = "操作成功";
         r.data = data;
         return r;
     }
@@ -46,7 +46,7 @@ public class Result<T> {
     public static Result<Void> success() {
         Result<Void> r = new Result<>();
         r.code = 200;
-        r.message = "success";
+        r.message = "操作成功";
         return r;
     }
 

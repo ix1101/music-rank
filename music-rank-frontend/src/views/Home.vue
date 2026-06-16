@@ -399,7 +399,7 @@ async function handleAddOrEdit(payload) {
         starRating: payload.starRating,
         notes: payload.notes
       })
-      ElMessage.success('已更新')
+      ElMessage.success('已保存')
     } else {
       // 新建模式
       const res = await addMusic(payload)
@@ -513,7 +513,8 @@ async function handlePlaylistDelete(playlist) {
 async function handleTextImport(list) {
   try {
     const r = await batchImportMusic(list)
-    ElMessage.success(r.data?.message || `导入 ${list.length} 首`)
+    const msg = r.data?.message
+    ElMessage.success((msg && msg !== 'success' && msg !== '操作成功') ? msg : `已导入 ${list.length} 首`)
     fetchData()
     fetchPlaylists()
     fetchSingerList()

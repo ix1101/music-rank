@@ -105,8 +105,14 @@ body {
   border-radius: var(--radius-lg);
   overflow: hidden;
   box-shadow: var(--shadow-md);
+  --el-dialog-bg-color: var(--bg);
+  --el-dialog-title-font-size: 18px;
 }
-.el-dialog__header { padding: 24px 24px 0; border-bottom: none; }
+.el-dialog__header {
+  padding: 24px 24px 0;
+  border-bottom: none;
+}
+
 .el-dialog__headerbtn { top: 24px; right: 24px; }
 .el-dialog__title { font-size: 18px; font-weight: 400; letter-spacing: 0.5px; }
 .el-dialog__body { padding: 20px 24px; }

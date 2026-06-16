@@ -93,10 +93,10 @@ function handleSync() {
 /* ---- 顶部 ---- */
 .dialog-header {
   display: flex; align-items: center; justify-content: space-between;
-  padding-bottom: 12px; border-bottom: 1px solid #ebeef5; margin-bottom: 4px;
+  padding-bottom: 12px; border-bottom: 1px solid var(--border-light); margin-bottom: 4px;
 }
-.selected-count { font-size: 13px; color: #606266; }
-.count-highlight { color: #165DFF; font-weight: 600; }
+.selected-count { font-size: 13px; color: var(--text-secondary); }
+.count-highlight { color: var(--primary); font-weight: 600; }
 
 /* ---- 列表容器 ---- */
 .playlist-list {
@@ -106,7 +106,7 @@ function handleSync() {
   padding: 8px 4px;
 }
 .playlist-list::-webkit-scrollbar { width: 4px; }
-.playlist-list::-webkit-scrollbar-thumb { background: #dcdfe6; border-radius: 2px; }
+.playlist-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 .playlist-list::-webkit-scrollbar-track { background: transparent; }
 
 /* ---- 列表项 ---- */
@@ -116,17 +116,17 @@ function handleSync() {
   gap: 12px;
   padding: 8px 12px;
   margin-bottom: 8px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   transition: background-color 0.15s;
 }
 .playlist-item:last-child { margin-bottom: 0; }
 
-/* hover / 选中 — 整行蓝色背景 */
-.playlist-item:hover { background: #f0f5ff; }
-.playlist-item.is-checked { background: #eef2ff; }
+/* hover / 选中 */
+.playlist-item:hover { background: var(--primary-bg); }
+.playlist-item.is-checked { background: var(--primary-bg); }
 
-/* 复选框 — 固定不 shrink */
+/* 复选框 */
 .item-checkbox {
   flex-shrink: 0;
   display: flex;
@@ -134,14 +134,14 @@ function handleSync() {
 }
 .item-checkbox :deep(.el-checkbox__label) { display: none; }
 
-/* 封面 — 固定容器，禁止溢出 */
+/* 封面 */
 .item-cover {
   width: 56px;
   height: 56px;
   border-radius: 6px;
   overflow: hidden;
   flex-shrink: 0;
-  background: #f1f5f9;
+  background: var(--bg-warm);
 }
 .item-cover img {
   display: block;
@@ -162,18 +162,18 @@ function handleSync() {
 .item-name {
   font-size: 14px;
   font-weight: 500;
-  color: #303133;
+  color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .item-count {
   font-size: 12px;
-  color: #909399;
+  color: var(--text-muted);
 }
 
 /* 空状态 */
 .empty-state {
-  text-align: center; padding: 40px 0; color: #909399; font-size: 14px;
+  text-align: center; padding: 40px 0; color: var(--text-muted); font-size: 14px;
 }
 </style>
