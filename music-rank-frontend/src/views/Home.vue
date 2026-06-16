@@ -174,7 +174,7 @@ import {
   getSongPlaylists, updateSongPlaylists
 } from '../api/music'
 import { getPlaylists, deletePlaylist, createPlaylist } from '../api/playlist'
-import { getTokenStatus } from '../api/kugou'
+import { getTokenStatus, syncTokenToBackend } from '../api/kugou'
 import axios from 'axios'
 
 // ===== 状态 =====
@@ -222,7 +222,7 @@ async function fetchSingerList() {
 let st = null
 function onSearchDebounce() {
   clearTimeout(st)
-  st = setTimeout(() => { currentPage.value = 1; fetchData(); fetchStats() }, 300)
+  st = setTimeout(() => { currentPage.value = 1; fetchData() }, 300)
 }
 
 // ===== 数据获取 =====
@@ -237,12 +237,12 @@ async function fetchData() {
       starRatingMax: filter.value.starRatingMax ?? undefined,
       hasStar: filter.value.hasStar !== null ? filter.value.hasStar : undefined
     })
-    const b = res.data
-    tableData.value = b.data?.records || b.records || []
-    // total 取自 stats 端点，这里仅取页面数据
-    if (!currentPlaylistId.value && !keyword.value && !filter.value.singer && filter.value.starRatingMin == null && filter.value.starRatingMax == null && filter.value.hasStar == null) {
-      // 无筛选时用 stats 的 total
-    }
+    // 响应中已合并 total + avgRating，一次请求替代原来的 fetchData + fetchStats
+    const result = res.data?.data || res.data || {}
+    tableData.value = result.records || []
+    statsTotal.value = result.total || 0
+    const avg = result.avgRating || 0
+    statsAvg.value = Number(avg) > 0 ? Number(avg).toFixed(1) : '0'
   } catch (e) { ElMessage.error(e.message || '加载失败') }
 }
 
@@ -274,7 +274,7 @@ async function fetchPlaylists() {
 function switchTo(tab) {
   activeTab.value = tab
   if (tab === 'playlists') fetchPlaylists()
-  else { fetchData(); fetchStats() }
+  else { fetchData() }
 }
 
 function goToPlaylist(p) {
@@ -283,7 +283,6 @@ function goToPlaylist(p) {
   currentPlaylistName.value = p.name
   activeTab.value = 'all'
   fetchData()
-  fetchStats()
 }
 
 function backToAll() {
@@ -291,7 +290,6 @@ function backToAll() {
   currentPlaylistId.value = null
   resetFilters()
   fetchData()
-  fetchStats()
 }
 
 function resetFilters() {
@@ -303,7 +301,6 @@ function resetFilters() {
 function onFilterChange() {
   currentPage.value = 1
   fetchData()
-  fetchStats()
 }
 
 // ===== 歌曲操作 =====
@@ -408,7 +405,6 @@ async function handleAddOrEdit(payload) {
 
     editingSong.value = null
     fetchData()
-    fetchStats()
     fetchPlaylists()
   } catch (e) {
     ElMessage.error(e.message || (payload.id ? '更新失败' : '添加失败'))
@@ -420,7 +416,7 @@ async function handleStarChange(row, newRating) {
   try {
     await updateStarRating(row.id, newRating)
     row.starRating = newRating
-    fetchStats()
+    fetchData()
   } catch (e) { ElMessage.error(e.message) }
 }
 
@@ -439,7 +435,6 @@ async function handleRowDelete(row) {
     addDialogVisible.value = false
     editingSong.value = null
     fetchData()
-    fetchStats()
     fetchPlaylists()
     fetchSingerList()
   } catch (e) {
@@ -463,7 +458,6 @@ async function handleBatchDelete() {
     ElMessage.success('已删除')
     selectedIds.value = []
     fetchData()
-    fetchStats()
     fetchPlaylists()
     fetchSingerList()
   } catch (e) {
@@ -483,7 +477,6 @@ async function handlePlaylistDelete(playlist) {
     ElMessage.success('歌单已删除')
     fetchPlaylists()
     fetchData()
-    fetchStats()
     fetchSingerList()
   } catch (e) {
     if (e !== 'cancel' && e !== 'close') ElMessage.error(e.message)
@@ -496,7 +489,6 @@ async function handleTextImport(list) {
     const r = await batchImportMusic(list)
     ElMessage.success(r.data?.message || `导入 ${list.length} 首`)
     fetchData()
-    fetchStats()
     fetchPlaylists()
     fetchSingerList()
   } catch (e) {
@@ -584,8 +576,13 @@ async function checkLogin() {
     const bt = r.data?.data?.token || r.data?.token
     if (bt) { applyToken(bt); return }
   } catch {}
+  // 后端没有 token，尝试从本地读取
   const lt = localStorage.getItem('kugou_token')
-  if (lt) applyToken(lt)
+  if (lt) {
+    applyToken(lt)
+    // 本地有但后端没有 → 自动同步，让其他设备也能获取 token
+    syncTokenToBackend(lt).catch(() => {})
+  }
 }
 
 // ===== 酷狗同步 =====
@@ -686,7 +683,7 @@ async function handleKugouSync(ids) {
     }
     ElMessage.success(`同步完成！导入 ${n} 首`)
     syncDialogVisible.value = false
-    fetchData(); fetchStats(); fetchPlaylists(); fetchSingerList()
+    fetchData(); fetchPlaylists(); fetchSingerList()
   } catch (e) {
     if (!expired) ElMessage.error('同步失败')
   } finally { syncing.value = false }
@@ -696,7 +693,6 @@ async function handleKugouSync(ids) {
 onMounted(() => {
   checkLogin()
   fetchData()
-  fetchStats()
   fetchPlaylists()
   fetchSingerList()  // 获取全部歌手（不受筛选影响）
 })

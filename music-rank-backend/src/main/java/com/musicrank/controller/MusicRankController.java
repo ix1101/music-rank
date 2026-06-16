@@ -1,7 +1,7 @@
 package com.musicrank.controller;
 
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.musicrank.common.Result;
+import com.musicrank.dto.MusicPageResult;
 import com.musicrank.dto.MusicQueryDTO;
 import com.musicrank.entity.MusicRank;
 import com.musicrank.service.MusicRankService;
@@ -25,9 +25,10 @@ public class MusicRankController {
 
     /**
      * 分页查询歌曲（支持歌单筛选、关键词搜索、歌手筛选、星级筛选、专辑筛选）
+     * 响应中合并了聚合统计（total / avgRating），前端无需再单独请求 /stats
      */
     @GetMapping("/page")
-    public Result<Page<MusicRank>> getPage(
+    public Result<MusicPageResult> getPage(
             @RequestParam(defaultValue = "1") Long current,
             @RequestParam(defaultValue = "10") Long size,
             @RequestParam(required = false) String keyword,
@@ -49,7 +50,29 @@ public class MusicRankController {
         query.setHasStar(hasStar);
         query.setAlbum(album);
 
-        return Result.success(musicRankService.getPage(query));
+        // 合并分页数据和聚合统计，减少一次 HTTP 往返
+        com.baomidou.mybatisplus.extension.plugins.pagination.Page<MusicRank> page = musicRankService.getPage(query);
+        Map<String, Object> stats = musicRankService.getStats(query);
+
+        MusicPageResult result = new MusicPageResult();
+        result.setRecords(page.getRecords());
+        result.setTotal(page.getTotal());
+        result.setCurrent(page.getCurrent());
+        result.setSize(page.getSize());
+        result.setPages(page.getPages());
+        // SQLite JDBC 返回 Double，MySQL 返回 BigDecimal，做安全转换
+        Object avgObj = stats.get("avgRating");
+        BigDecimal avgRating = BigDecimal.ZERO;
+        if (avgObj instanceof BigDecimal bd) {
+            avgRating = bd;
+        } else if (avgObj instanceof Double d) {
+            avgRating = BigDecimal.valueOf(d);
+        } else if (avgObj instanceof Number n) {
+            avgRating = BigDecimal.valueOf(n.doubleValue());
+        }
+        result.setAvgRating(avgRating);
+
+        return Result.success(result);
     }
 
     /**
