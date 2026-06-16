@@ -11,7 +11,9 @@ spring:
     # SQLite — 内嵌数据库，无需独立 MySQL 进程，省 300MB+ 内存
     url: jdbc:sqlite:/home/admin/music-rank/data/music.db
     driver-class-name: org.sqlite.JDBC
-    # SQLite 不需要连接池，用默认即可
+    hikari:
+      maximum-pool-size: 3
+      minimum-idle: 1
 
 mybatis-plus:
   configuration:

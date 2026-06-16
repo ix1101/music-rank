@@ -114,14 +114,19 @@
       </div>
     </div>
 
-    <!-- 分页 — 极简 -->
+    <!-- 分页 -->
     <div class="song-pager">
-      <button :disabled="currentPage <= 1" @click="$emit('update:currentPage', currentPage - 1); $emit('page-change')">‹</button>
-      <template v-for="p in totalPages" :key="p">
-        <button v-if="p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1" :class="{ on: p === currentPage }" @click="$emit('update:currentPage', p); $emit('page-change')">{{ p }}</button>
-        <span v-else-if="p === 2 || p === totalPages - 1" class="pager-dots">…</span>
-      </template>
-      <button :disabled="currentPage >= totalPages" @click="$emit('update:currentPage', currentPage + 1); $emit('page-change')">›</button>
+      <button :disabled="currentPage <= 1" @click="goToPage(currentPage - 1)">‹</button>
+      <button v-for="p in visiblePages" :key="p"
+        :class="{ on: p === currentPage }"
+        @click="goToPage(p)">{{ p }}</button>
+      <button :disabled="currentPage >= totalPages" @click="goToPage(currentPage + 1)">›</button>
+      <div class="pager-jump">
+        <input type="number" v-model.number="jumpPage" :max="totalPages" min="1"
+          @keyup.enter="doJump" class="jump-input" />
+        <span class="jump-sep">/</span>
+        <span class="jump-total">{{ totalPages }}</span>
+      </div>
       <span class="pager-info">共 {{ total }} 首</span>
     </div>
   </div>
@@ -146,6 +151,33 @@ const emit = defineEmits([
 ])
 
 const totalPages = computed(() => Math.max(1, Math.ceil(props.total / props.pageSize)))
+
+// 只显示当前页前后 1 页，最多 3 个页码按钮
+const visiblePages = computed(() => {
+  const total = totalPages.value
+  const cur = props.currentPage
+  const start = Math.max(1, cur - 1)
+  const end = Math.min(total, cur + 1)
+  const pages = []
+  for (let p = start; p <= end; p++) pages.push(p)
+  return pages
+})
+
+// 跳页输入
+const jumpPage = ref(props.currentPage)
+watch(() => props.currentPage, v => { jumpPage.value = v })
+
+function goToPage(p) {
+  emit('update:currentPage', p)
+  emit('page-change')
+}
+
+function doJump() {
+  const p = jumpPage.value
+  if (p >= 1 && p <= totalPages.value) {
+    goToPage(p)
+  }
+}
 
 // 备注显示模式：true = 标签，false = 文字
 const notesAsTags = ref(true)
@@ -375,6 +407,14 @@ input:checked ~ .check-mark {
   font-size: 12px; padding: 0 8px; cursor: default;
 }
 
+/* 跳页输入（移动端） */
+.pager-jump { display: flex; align-items: center; gap: 6px; }
+.jump-input { width: 36px; height: 32px; border: 1px solid var(--border-light); border-radius: 8px; text-align: center; font-size: 13px; font-family: inherit; color: var(--text); background: var(--surface); outline: none; -moz-appearance: textfield; }
+.jump-input::-webkit-inner-spin-button, .jump-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.jump-input:focus { border-color: var(--primary); }
+.jump-sep { font-size: 13px; color: var(--text-muted); }
+.jump-total { font-size: 13px; color: var(--text-secondary); font-weight: 500; }
+
 /* 移动端：操作按钮始终可见（触摸设备无 hover） */
 @media (max-width: 767px) {
   .row-actions { opacity: 1; }
@@ -396,6 +436,9 @@ input:checked ~ .check-mark {
   }
   /* 操作按钮缩小 */
   .act-btn { width: 28px; height: 28px; }
+  /* 分页：移动端显示跳页输入，隐藏页码 */
+  .pager-num { display: none; }
+  .pager-jump { display: flex; }
   .act-btn svg { width: 12px; height: 12px; }
 }
 </style>

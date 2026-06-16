@@ -237,6 +237,9 @@ function clearAll() {
 
 .fselect-backdrop { position: fixed; inset: 0; z-index: 40; }
 
+/* 最后一个下拉（歌手）：右对齐，避免溢出屏幕 */
+.fselect-wrap:last-child .fselect-drop { right: auto; left: 50%; transform: translateX(-50%); }
+
 @media (min-width: 768px) {
   .fselect-drop--scroll { max-height: 300px; }
 }

@@ -63,42 +63,52 @@
     <div v-show="activeTab === 'all'">
       <!-- 工具栏 -->
       <div class="toolbar">
-        <template v-if="!isLoggedIn">
-          <el-button class="tbtn-ghost" size="small" @click="loginDialogVisible = true">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
-            登录
-          </el-button>
-        </template>
-        <template v-else>
-          <el-button class="tbtn-ghost" size="small" @click="handleLogout">退出</el-button>
-          <el-button class="tbtn-ghost" size="small" @click="openSyncDialog" :loading="syncing">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-            同步
-          </el-button>
-        </template>
+        <!-- 左组：登录/退出 + 同步 -->
+        <span class="tb-group">
+          <template v-if="!isLoggedIn">
+            <el-button class="tbtn-ghost" size="small" @click="loginDialogVisible = true">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+              登录
+            </el-button>
+          </template>
+          <template v-else>
+            <el-button class="tbtn-ghost" size="small" @click="handleLogout">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+              退出
+            </el-button>
+            <el-button class="tbtn-ghost" size="small" @click="openSyncDialog" :loading="syncing">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+              同步
+            </el-button>
+          </template>
+        </span>
+        <!-- 中：添加 -->
         <el-button class="tbtn-primary" size="small" @click="openAddDialog">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           添加
         </el-button>
-        <el-button class="tbtn-ghost" size="small" @click="importDialogVisible = true">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-          导入
-        </el-button>
-        <div class="export-wrap" :class="{ open: exportOpen }">
-          <button class="tbtn-ghost el-button" @click="exportOpen = !exportOpen">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            导出
-          </button>
-          <div v-if="exportOpen" class="export-drop">
-            <div class="export-opts">
-              <label class="exp-opt"><input type="checkbox" v-model="expAlbum"> 包含专辑</label>
-              <label class="exp-opt"><input type="checkbox" v-model="expNotes"> 包含备注</label>
+        <!-- 右组：导入 + 导出 -->
+        <span class="tb-group">
+          <el-button class="tbtn-ghost" size="small" @click="importDialogVisible = true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            导入
+          </el-button>
+          <div class="export-wrap" :class="{ open: exportOpen }">
+            <el-button class="tbtn-ghost" size="small" @click="exportOpen = !exportOpen">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              导出
+            </el-button>
+            <div v-if="exportOpen" class="export-drop">
+              <div class="export-opts">
+                <label class="exp-opt"><input type="checkbox" v-model="expAlbum"> 包含专辑</label>
+                <label class="exp-opt"><input type="checkbox" v-model="expNotes"> 包含备注</label>
+              </div>
+              <button @click="handleExport('dash'); exportOpen = false">横杠 (- 歌手 - 歌名)</button>
+              <button @click="handleExport('pipe'); exportOpen = false">竖线 (⭐ 5星 | 歌手 | 歌名)</button>
+              <button @click="handleExport('text'); exportOpen = false">文字 (歌手：…，歌名：…)</button>
             </div>
-            <button @click="handleExport('dash'); exportOpen = false">横杠 (- 歌手 - 歌名)</button>
-            <button @click="handleExport('pipe'); exportOpen = false">竖线 (⭐ 5星 | 歌手 | 歌名)</button>
-            <button @click="handleExport('text'); exportOpen = false">文字 (歌手：…，歌名：…)</button>
           </div>
-        </div>
+        </span>
         <div v-if="exportOpen" class="fselect-backdrop" @click="exportOpen = false" />
       </div>
 
@@ -209,12 +219,26 @@ const singerList = ref([])  // 从全部歌曲中获取，不依赖当前筛选
 const playlistCount = computed(() => playlists.value.length || 0)
 
 // 加载全部歌手列表（不受筛选影响）
+const SINGER_CACHE_KEY = 'music_rank_singers'
+
 async function fetchSingerList() {
   try {
     const r = await getMusicList({})
     const all = r.data?.data || r.data || []
     const s = new Set(); all.forEach(i => { if (i.artist) s.add(i.artist) })
-    singerList.value = [...s].sort()
+    const sorted = [...s].sort()
+    singerList.value = sorted
+    try { localStorage.setItem(SINGER_CACHE_KEY, JSON.stringify(sorted)) } catch {}
+  } catch {}
+}
+
+function loadSingersFromCache() {
+  try {
+    const cached = localStorage.getItem(SINGER_CACHE_KEY)
+    if (cached) {
+      const arr = JSON.parse(cached)
+      if (Array.isArray(arr) && arr.length) singerList.value = arr
+    }
   } catch {}
 }
 
@@ -222,7 +246,7 @@ async function fetchSingerList() {
 let st = null
 function onSearchDebounce() {
   clearTimeout(st)
-  st = setTimeout(() => { currentPage.value = 1; fetchData() }, 300)
+  st = setTimeout(() => { currentPage.value = 1; fetchData() }, 200)
 }
 
 // ===== 数据获取 =====
@@ -777,7 +801,10 @@ onMounted(() => {
 
 /* === 工具栏 === */
 .toolbar {
-  display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; align-items: center;
+  display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; align-items: center;
+}
+.tb-group {
+  display: flex; gap: 6px; align-items: center;
 }
 :deep(.tbtn-primary) {
   height: 36px !important; padding: 0 14px !important;
@@ -803,7 +830,7 @@ onMounted(() => {
   min-width: 200px;
   background: var(--surface); border: 1px solid var(--border-light);
   border-radius: 12px; box-shadow: var(--shadow-md);
-  padding: 6px; z-index: 50;
+  padding: 6px; z-index: 60;
   display: flex; flex-direction: column; gap: 2px;
 }
 .export-drop button {
@@ -837,7 +864,14 @@ onMounted(() => {
   .header-top h1 { font-size: 20px; }
   .stats-line { gap: 18px; }
   .st-num { font-size: 24px; }
-  .toolbar { gap: 4px; }
+  .toolbar { gap: 5px; flex-wrap: nowrap; justify-content: space-between; padding: 0 2px; }
+	  .tb-group { gap: 5px; }
+	  :deep(.tbtn-primary), :deep(.tbtn-ghost) {
+	    gap: 5px !important;
+	    padding: 0 10px !important; font-size: 12px !important; height: 32px !important;
+	  }
+  /* 导出下拉：移动端左对齐 */
+  .export-drop { right: 0; left: auto; min-width: 170px; }
 }
 
 /* 平板 (≥768px) */
